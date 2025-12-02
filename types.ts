@@ -34,4 +34,6 @@ export interface Translation {
   signOut: string;
   dashboardTitle: string;
   dashboardText: string;
+  secureAccess: string;
+  newCareer: string;
 }

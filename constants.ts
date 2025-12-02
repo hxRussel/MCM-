@@ -20,7 +20,9 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     successLogin: "Successfully logged in!",
     signOut: "Sign Out",
     dashboardTitle: "Manager Dashboard",
-    dashboardText: "Your career data is now synced securely in the cloud."
+    dashboardText: "Your career data is now synced securely in the cloud.",
+    secureAccess: "Secure Access",
+    newCareer: "New Career"
   },
   [Language.IT]: {
     welcome: "Benvenuto su MCM+",
@@ -41,6 +43,8 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     successLogin: "Accesso effettuato con successo!",
     signOut: "Disconnetti",
     dashboardTitle: "Dashboard Manager",
-    dashboardText: "I dati della tua carriera sono ora sincronizzati nel cloud."
+    dashboardText: "I dati della tua carriera sono ora sincronizzati nel cloud.",
+    secureAccess: "Accesso Sicuro",
+    newCareer: "Nuova Carriera"
   }
 };

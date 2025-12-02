@@ -13,8 +13,9 @@ import {
   SunIcon, 
   MoonIcon, 
   ComputerDesktopIcon, 
-  LanguageIcon,
-  ExclamationCircleIcon
+  ExclamationCircleIcon,
+  EyeIcon,
+  EyeSlashIcon
 } from '@heroicons/react/24/outline';
 
 // --- Components ---
@@ -33,19 +34,41 @@ const InputField = ({
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; 
   placeholder?: string;
   disabled?: boolean;
-}) => (
-  <div className="mb-4">
-    <label className="block text-sm font-medium mb-1 opacity-80">{label}</label>
-    <input
-      type={type}
-      value={value}
-      onChange={onChange}
-      disabled={disabled}
-      placeholder={placeholder}
-      className="w-full px-4 py-3 rounded-lg bg-white/5 border border-obsidian/10 dark:border-ghost/20 focus:border-mint focus:ring-2 focus:ring-mint/50 outline-none transition-all duration-200 text-obsidian dark:text-ghost placeholder-obsidian/30 dark:placeholder-ghost/30"
-    />
-  </div>
-);
+}) => {
+  const [showPassword, setShowPassword] = useState(false);
+  const isPassword = type === 'password';
+  const inputType = isPassword ? (showPassword ? 'text' : 'password') : type;
+
+  return (
+    <div className="mb-4">
+      <label className="block text-sm font-medium mb-1 opacity-80">{label}</label>
+      <div className="relative">
+        <input
+          type={inputType}
+          value={value}
+          onChange={onChange}
+          disabled={disabled}
+          placeholder={placeholder}
+          className="w-full px-4 py-3 pr-12 rounded-lg bg-white/5 border border-obsidian/10 dark:border-ghost/20 focus:border-mint focus:ring-2 focus:ring-mint/50 outline-none transition-all duration-200 text-obsidian dark:text-ghost placeholder-obsidian/30 dark:placeholder-ghost/30"
+        />
+        {isPassword && (
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-obsidian/50 dark:text-ghost/50 hover:text-mint transition-colors p-1"
+            tabIndex={-1}
+          >
+            {showPassword ? (
+              <EyeSlashIcon className="w-5 h-5" />
+            ) : (
+              <EyeIcon className="w-5 h-5" />
+            )}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const Button = ({ 
   onClick, 
@@ -175,8 +198,24 @@ export default function App() {
     );
   }
 
+  // Unified Toggle Component
+  const ToggleButton = ({ active, onClick, children, title }: any) => (
+    <button
+      onClick={onClick}
+      title={title}
+      className={`
+        flex items-center justify-center w-8 h-8 rounded-full transition-all duration-200
+        ${active 
+          ? 'bg-obsidian text-ghost dark:bg-ghost dark:text-obsidian shadow-sm scale-105' 
+          : 'text-obsidian dark:text-ghost opacity-50 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5'}
+      `}
+    >
+      {children}
+    </button>
+  );
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden font-sans">
       
       {/* Background Decor */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
@@ -184,47 +223,34 @@ export default function App() {
         <div className="absolute top-[40%] -left-[10%] w-[400px] h-[400px] bg-blue-500/10 dark:bg-blue-500/5 rounded-full blur-3xl opacity-30"></div>
       </div>
 
-      {/* Top Controls (Theme & Lang) */}
-      <div className="absolute top-6 right-6 flex items-center gap-3">
-        {/* Language Toggle */}
-        <div className="flex bg-white/50 dark:bg-black/30 backdrop-blur-md rounded-full p-1 border border-obsidian/5 dark:border-ghost/5">
-            <button 
-              onClick={() => setLanguage(Language.IT)}
-              className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${language === Language.IT ? 'bg-mint text-mint-text shadow-sm' : 'text-obsidian dark:text-ghost opacity-60 hover:opacity-100'}`}
-            >
-              IT
-            </button>
-            <button 
-              onClick={() => setLanguage(Language.EN)}
-              className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${language === Language.EN ? 'bg-mint text-mint-text shadow-sm' : 'text-obsidian dark:text-ghost opacity-60 hover:opacity-100'}`}
-            >
-              EN
-            </button>
-        </div>
+      {/* Unified Top Controls Bar */}
+      <div className="absolute top-6 right-6 z-50">
+        <div className="flex items-center gap-1 bg-white/50 dark:bg-black/30 backdrop-blur-md rounded-full p-1.5 border border-obsidian/5 dark:border-ghost/5 shadow-lg shadow-black/5">
+            {/* Language Group */}
+            <div className="flex gap-1">
+              <ToggleButton active={language === Language.IT} onClick={() => setLanguage(Language.IT)}>
+                <span className="text-xs font-bold">IT</span>
+              </ToggleButton>
+              <ToggleButton active={language === Language.EN} onClick={() => setLanguage(Language.EN)}>
+                <span className="text-xs font-bold">EN</span>
+              </ToggleButton>
+            </div>
 
-        {/* Theme Toggle */}
-        <div className="flex bg-white/50 dark:bg-black/30 backdrop-blur-md rounded-full p-1 border border-obsidian/5 dark:border-ghost/5">
-          <button 
-            onClick={() => setTheme(Theme.LIGHT)}
-            className={`p-2 rounded-full transition-all ${theme === Theme.LIGHT ? 'bg-obsidian text-ghost dark:bg-ghost dark:text-obsidian' : 'text-obsidian dark:text-ghost opacity-50'}`}
-            title="Light Mode"
-          >
-            <SunIcon className="w-4 h-4" />
-          </button>
-          <button 
-            onClick={() => setTheme(Theme.AUTO)}
-            className={`p-2 rounded-full transition-all ${theme === Theme.AUTO ? 'bg-obsidian text-ghost dark:bg-ghost dark:text-obsidian' : 'text-obsidian dark:text-ghost opacity-50'}`}
-            title="Auto Mode"
-          >
-            <ComputerDesktopIcon className="w-4 h-4" />
-          </button>
-          <button 
-            onClick={() => setTheme(Theme.DARK)}
-            className={`p-2 rounded-full transition-all ${theme === Theme.DARK ? 'bg-obsidian text-ghost dark:bg-ghost dark:text-obsidian' : 'text-obsidian dark:text-ghost opacity-50'}`}
-            title="Dark Mode"
-          >
-            <MoonIcon className="w-4 h-4" />
-          </button>
+            {/* Divider */}
+            <div className="w-px h-5 bg-obsidian/10 dark:bg-ghost/10 mx-1"></div>
+
+            {/* Theme Group */}
+            <div className="flex gap-1">
+              <ToggleButton active={theme === Theme.LIGHT} onClick={() => setTheme(Theme.LIGHT)} title="Light Mode">
+                <SunIcon className="w-4 h-4" />
+              </ToggleButton>
+              <ToggleButton active={theme === Theme.AUTO} onClick={() => setTheme(Theme.AUTO)} title="Auto Mode">
+                <ComputerDesktopIcon className="w-4 h-4" />
+              </ToggleButton>
+              <ToggleButton active={theme === Theme.DARK} onClick={() => setTheme(Theme.DARK)} title="Dark Mode">
+                <MoonIcon className="w-4 h-4" />
+              </ToggleButton>
+            </div>
         </div>
       </div>
 
@@ -264,7 +290,7 @@ export default function App() {
             <div className="mb-6 flex justify-between items-end">
               <h2 className="text-2xl font-bold">{isLogin ? t.login : t.register}</h2>
               <span className="text-mint text-xs font-bold uppercase tracking-wider mb-1">
-                {isLogin ? 'Secure Access' : 'New Career'}
+                {isLogin ? t.secureAccess : t.newCareer}
               </span>
             </div>
 
