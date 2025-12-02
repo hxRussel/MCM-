@@ -1,4 +1,5 @@
 
+
 import { Language, Translation, Career, Player } from './types';
 
 export const MOCK_CAREER: Career = {
@@ -120,6 +121,8 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     noResults: "No results found.",
     deleteConfirm: "Are you sure you want to delete this item?",
     deleteCareerConfirm: "Are you sure? This will delete the career save permanently.",
+    deleteCareerTitle: "Delete Career",
+    deleteAction: "Delete",
     itemDeleted: "Item deleted.",
     itemUpdated: "Item updated.",
     editName: "Edit Name",
@@ -224,6 +227,8 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     noResults: "Nessun risultato trovato.",
     deleteConfirm: "Sei sicuro di voler eliminare questo elemento?",
     deleteCareerConfirm: "Sei sicuro? Questo eliminerà definitivamente il salvataggio della carriera.",
+    deleteCareerTitle: "Elimina Carriera",
+    deleteAction: "Elimina",
     itemDeleted: "Elemento eliminato.",
     itemUpdated: "Elemento aggiornato.",
     editName: "Modifica Nome",

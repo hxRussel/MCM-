@@ -1,4 +1,6 @@
 
+
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   createUserWithEmailAndPassword, 
@@ -171,7 +173,8 @@ const ConfirmationModal = ({
   title, 
   message, 
   confirmText = "Confirm", 
-  cancelText = "Cancel" 
+  cancelText = "Cancel",
+  isDanger = false
 }: { 
   isOpen: boolean; 
   onClose: () => void; 
@@ -180,6 +183,7 @@ const ConfirmationModal = ({
   message: string;
   confirmText?: string;
   cancelText?: string;
+  isDanger?: boolean;
 }) => {
   if (!isOpen) return null;
 
@@ -190,7 +194,7 @@ const ConfirmationModal = ({
         <p className="opacity-70 text-sm mb-6">{message}</p>
         <div className="flex gap-3">
           <Button variant="ghost" onClick={onClose} className="!py-2">{cancelText}</Button>
-          <Button variant="primary" onClick={onConfirm} className="!py-2">{confirmText}</Button>
+          <Button variant={isDanger ? "danger" : "primary"} onClick={onConfirm} className="!py-2">{confirmText}</Button>
         </div>
       </div>
     </div>
@@ -351,7 +355,7 @@ const AddCareerModal = ({ t, userId, onClose }: { t: any, userId: string, onClos
         const teamRef = doc(db, 'teams', selectedTeam.id);
         batch.set(teamRef, selectedTeam);
 
-        // Generate mock players for this custom team
+        // Generate mock squad for this custom team
         const mockSquad = generateMockSquad(selectedTeam.id, selectedTeam.name);
         mockSquad.forEach(player => {
            const playerRef = doc(collection(db, 'players'));
@@ -631,6 +635,7 @@ const CareerDetailModal = ({ career, t, onClose, userId }: { career: Career, t: 
   const [loading, setLoading] = useState(true);
   const [selectedPlayerForEdit, setSelectedPlayerForEdit] = useState<Player | null>(null);
   const [showEndSeasonConfirm, setShowEndSeasonConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Fetch Squad and Apply Overrides
   useEffect(() => {
@@ -649,7 +654,9 @@ const CareerDetailModal = ({ career, t, onClose, userId }: { career: Career, t: 
       try {
         const q = query(collection(db, 'players'), where('teamId', '==', career.teamId));
         const snap = await getDocs(q);
-        let pl = snap.docs.map(d => ({ id: d.id, ...doc.data() } as Player));
+        // FIX: The original code used 'doc.data()' where 'doc' is the firestore function.
+        // We must use 'd.data()' where 'd' is the snapshot variable in the map.
+        let pl = snap.docs.map(d => ({ id: d.id, ...d.data() } as Player));
         
         // Apply career specific overrides
         pl = pl.map(p => {
@@ -672,15 +679,18 @@ const CareerDetailModal = ({ career, t, onClose, userId }: { career: Career, t: 
     fetchSquad();
   }, [career.id, career.teamId, career.seasonOffset, career.playerOverrides]);
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (career.id === MOCK_CAREER.id) {
        alert("Mock career cannot be deleted.");
        return;
     }
+    setShowDeleteConfirm(true);
+  };
 
-    if (!window.confirm(t.deleteCareerConfirm)) return;
+  const executeDelete = async () => {
     try {
       await deleteDoc(doc(db, 'careers', career.id));
+      setShowDeleteConfirm(false);
       onClose();
     } catch (err) {
       console.error(err);
@@ -914,6 +924,17 @@ const CareerDetailModal = ({ career, t, onClose, userId }: { career: Career, t: 
         message={t.confirmEndSeason}
         confirmText="Confirm +1 Age"
         cancelText={t.cancel}
+      />
+
+      <ConfirmationModal 
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={executeDelete}
+        title={t.deleteCareerTitle}
+        message={t.deleteCareerConfirm}
+        confirmText={t.deleteAction}
+        cancelText={t.cancel}
+        isDanger={true}
       />
     </>
   );

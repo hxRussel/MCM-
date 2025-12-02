@@ -181,6 +181,8 @@ export interface Translation {
   noResults: string;
   deleteConfirm: string;
   deleteCareerConfirm: string;
+  deleteCareerTitle: string;
+  deleteAction: string;
   itemDeleted: string;
   itemUpdated: string;
   editName: string;
