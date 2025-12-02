@@ -1,0 +1,46 @@
+import { Language, Translation } from './types';
+
+export const TRANSLATIONS: Record<Language, Translation> = {
+  [Language.EN]: {
+    welcome: "Welcome to MCM+",
+    subtitle: "Manage your FC career like a pro.",
+    login: "Log In",
+    register: "Sign Up",
+    email: "Email Address",
+    password: "Password",
+    confirmPassword: "Confirm Password",
+    submitLogin: "Log In",
+    submitRegister: "Create Account",
+    haveAccount: "Already have an account?",
+    noAccount: "Don't have an account?",
+    switchLogin: "Log in here",
+    switchRegister: "Register here",
+    loading: "Processing...",
+    errorGeneric: "Something went wrong. Please check your credentials.",
+    successLogin: "Successfully logged in!",
+    signOut: "Sign Out",
+    dashboardTitle: "Manager Dashboard",
+    dashboardText: "Your career data is now synced securely in the cloud."
+  },
+  [Language.IT]: {
+    welcome: "Benvenuto su MCM+",
+    subtitle: "Gestisci la tua carriera FC come un professionista.",
+    login: "Accedi",
+    register: "Registrati",
+    email: "Indirizzo Email",
+    password: "Password",
+    confirmPassword: "Conferma Password",
+    submitLogin: "Accedi",
+    submitRegister: "Crea Account",
+    haveAccount: "Hai già un account?",
+    noAccount: "Non hai un account?",
+    switchLogin: "Accedi qui",
+    switchRegister: "Registrati qui",
+    loading: "Elaborazione in corso...",
+    errorGeneric: "Qualcosa è andato storto. Controlla le tue credenziali.",
+    successLogin: "Accesso effettuato con successo!",
+    signOut: "Disconnetti",
+    dashboardTitle: "Dashboard Manager",
+    dashboardText: "I dati della tua carriera sono ora sincronizzati nel cloud."
+  }
+};
