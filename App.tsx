@@ -13,11 +13,19 @@ import {
   doc, 
   collection, 
   setDoc, 
-  onSnapshot 
+  onSnapshot,
+  query,
+  limit,
+  orderBy,
+  startAt,
+  endAt,
+  deleteDoc,
+  updateDoc,
+  where,
+  getDocs
 } from 'firebase/firestore';
-// Removed Storage imports to fix infinite loading issues
 import { auth, db } from './services/firebase';
-import { Language, Theme, AppView, Career, Currency, WageFrequency, MeasurementSystem } from './types';
+import { Language, Theme, AppView, Career, Currency, WageFrequency, MeasurementSystem, Player, Team } from './types';
 import { TRANSLATIONS, MOCK_CAREERS } from './constants';
 import { 
   SunIcon, 
@@ -46,7 +54,10 @@ import {
   ChevronLeftIcon,
   ScaleIcon,
   BanknotesIcon,
-  CalendarDaysIcon
+  CalendarDaysIcon,
+  MagnifyingGlassIcon,
+  FunnelIcon,
+  ChartBarIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 
@@ -150,6 +161,365 @@ const ToggleButton = ({ active, onClick, children, title, className = '' }: any)
     {children}
   </button>
 );
+
+// --- Player Detail Modal ---
+const PlayerDetailModal = ({ player, onClose, t }: { player: Player, onClose: () => void, t: any }) => {
+  if (!player) return null;
+
+  // Helper to get stats safely (case insensitive check done at component level or assuming CSV keys)
+  const getStat = (key: string) => player[key] || player[key.toLowerCase()] || 0;
+  
+  // Group stats for display
+  const statGroups = [
+    {
+      title: t.physical,
+      stats: [
+        { label: 'Acceleration', val: getStat('acceleration') },
+        { label: 'Sprint Speed', val: getStat('sprint speed') },
+        { label: 'Agility', val: getStat('agility') },
+        { label: 'Balance', val: getStat('balance') },
+        { label: 'Jumping', val: getStat('jumping') },
+        { label: 'Stamina', val: getStat('stamina') },
+        { label: 'Strength', val: getStat('strength') },
+      ]
+    },
+    {
+      title: t.technical,
+      stats: [
+        { label: 'Dribbling', val: getStat('dribbling') },
+        { label: 'Ball Control', val: getStat('ball control') },
+        { label: 'Finishing', val: getStat('finishing') },
+        { label: 'Shot Power', val: getStat('shot power') },
+        { label: 'Long Shots', val: getStat('long shots') },
+        { label: 'Vision', val: getStat('vision') },
+        { label: 'Crossing', val: getStat('crossing') },
+        { label: 'Short Passing', val: getStat('short passing') },
+      ]
+    },
+    {
+      title: t.defending,
+      stats: [
+        { label: 'Interceptions', val: getStat('interceptions') },
+        { label: 'Heading', val: getStat('heading accuracy') },
+        { label: 'Def. Aware', val: getStat('def awareness') },
+        { label: 'Stand Tackle', val: getStat('standing tackle') },
+        { label: 'Slide Tackle', val: getStat('sliding tackle') },
+      ]
+    }
+  ];
+
+  // Add GK stats if applicable
+  if (player.position === 'GK') {
+    statGroups.unshift({
+      title: t.goalkeeping,
+      stats: [
+        { label: 'Diving', val: getStat('gk diving') },
+        { label: 'Handling', val: getStat('gk handling') },
+        { label: 'Kicking', val: getStat('gk kicking') },
+        { label: 'Positioning', val: getStat('gk positioning') },
+        { label: 'Reflexes', val: getStat('gk reflexes') },
+      ]
+    });
+  }
+
+  const getOverallColor = (ovr: number) => {
+    if (ovr >= 90) return 'text-mint';
+    if (ovr >= 80) return 'text-green-400';
+    if (ovr >= 70) return 'text-yellow-400';
+    return 'text-gray-400';
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 animate-fadeIn">
+      <div className="bg-white dark:bg-obsidian w-full max-w-2xl h-[90vh] sm:h-auto max-h-[90vh] rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-slideUp">
+        
+        {/* Header */}
+        <div className="p-6 bg-gradient-to-br from-mint/20 to-transparent border-b border-obsidian/5 dark:border-ghost/5 flex justify-between items-start">
+           <div className="flex gap-4">
+              <div className="w-20 h-20 rounded-full bg-white dark:bg-white/10 flex items-center justify-center text-3xl font-black shadow-lg">
+                 <span className={getOverallColor(player.overall)}>{player.overall}</span>
+              </div>
+              <div>
+                <h2 className="text-2xl font-black uppercase leading-none mb-1">{player.name}</h2>
+                <div className="flex items-center gap-2 opacity-70 text-sm font-mono">
+                  <span className="font-bold bg-obsidian/10 dark:bg-white/10 px-2 py-0.5 rounded">{player.position}</span>
+                  <span>{player.team || player['club'] || 'Free Agent'}</span>
+                </div>
+                <div className="mt-2 text-xs opacity-50 flex gap-3">
+                   <span>{player.age} yo</span>
+                   <span>{player.height} cm</span>
+                   <span>{player.weight} kg</span>
+                </div>
+              </div>
+           </div>
+           <button onClick={onClose} className="p-2 bg-black/5 dark:bg-white/5 rounded-full hover:bg-black/10 dark:hover:bg-white/10">
+              <XMarkIcon className="w-6 h-6"/>
+           </button>
+        </div>
+
+        {/* Stats Grid */}
+        <div className="p-6 overflow-y-auto custom-scrollbar">
+           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {statGroups.map((group, idx) => (
+                <div key={idx} className="bg-black/5 dark:bg-white/5 rounded-xl p-4">
+                   <h4 className="text-xs font-bold uppercase opacity-50 mb-3 tracking-wider flex items-center gap-2">
+                     <ChartBarIcon className="w-3 h-3"/> {group.title}
+                   </h4>
+                   <div className="space-y-2">
+                      {group.stats.map((stat, sIdx) => (
+                        <div key={sIdx} className="flex items-center justify-between text-sm">
+                           <span className="opacity-80">{stat.label}</span>
+                           <div className="flex items-center gap-2 w-24">
+                              <div className="flex-1 h-1.5 bg-black/10 dark:bg-white/10 rounded-full overflow-hidden">
+                                <div 
+                                  className={`h-full rounded-full ${stat.val >= 80 ? 'bg-mint' : stat.val >= 60 ? 'bg-yellow-400' : 'bg-red-400'}`} 
+                                  style={{ width: `${Math.min(stat.val, 100)}%` }}
+                                ></div>
+                              </div>
+                              <span className="font-bold w-6 text-right">{stat.val}</span>
+                           </div>
+                        </div>
+                      ))}
+                   </div>
+                </div>
+              ))}
+           </div>
+        </div>
+
+      </div>
+    </div>
+  );
+};
+
+
+// --- Database View Component ---
+const DatabaseView = ({ t }: { t: any }) => {
+  const [activeTab, setActiveTab] = useState<'players' | 'teams' | 'leagues'>('players');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
+  
+  // Edit State
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editNameVal, setEditNameVal] = useState('');
+
+  // Fetch Data
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        let q;
+        const collectionName = activeTab === 'leagues' ? 'teams' : activeTab; // Leagues derived from teams for now
+        
+        const colRef = collection(db, collectionName);
+        
+        if (searchQuery.length > 2) {
+          // Case-sensitive prefix search (standard Firestore)
+          // For a real app, you'd want a separate lowercase field for search
+           q = query(
+            colRef, 
+            orderBy('name'), 
+            startAt(searchQuery), 
+            endAt(searchQuery + '\uf8ff'), 
+            limit(50)
+          );
+        } else {
+           // Default load
+           q = query(colRef, orderBy('name'), limit(50));
+           if (activeTab === 'players') {
+             // Maybe order by overall for players?
+             // q = query(colRef, orderBy('overall', 'desc'), limit(50));
+             // Keeping name for consistency unless ordered index exists
+           }
+        }
+
+        const snapshot = await getDocs(q);
+        const results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        if (activeTab === 'leagues') {
+           // Extract unique leagues from teams
+           const leaguesSet = new Set<string>();
+           results.forEach((team: any) => {
+             if (team.league) leaguesSet.add(team.league);
+             if (team.campionato) leaguesSet.add(team.campionato);
+           });
+           setData(Array.from(leaguesSet).map(l => ({ id: l, name: l })));
+        } else {
+           setData(results);
+        }
+
+      } catch (err) {
+        console.error("Error fetching DB data:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const timer = setTimeout(() => {
+       fetchData();
+    }, 500); // Debounce
+
+    return () => clearTimeout(timer);
+  }, [activeTab, searchQuery]);
+
+  // Actions
+  const handleDelete = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!window.confirm(t.deleteConfirm)) return;
+    
+    if (activeTab === 'leagues') {
+       alert("Cannot delete leagues directly. Delete the teams in the league.");
+       return;
+    }
+
+    try {
+      await deleteDoc(doc(db, activeTab, id));
+      setData(prev => prev.filter(item => item.id !== id));
+    } catch (err) {
+      console.error(err);
+      alert(t.errorGeneric);
+    }
+  };
+
+  const handleUpdateStart = (item: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingId(item.id);
+    setEditNameVal(item.name);
+  };
+
+  const handleUpdateSave = async (id: string, e: React.MouseEvent) => {
+     e.stopPropagation();
+     if (activeTab === 'leagues') return; // Read only for now
+
+     try {
+       await updateDoc(doc(db, activeTab, id), { name: editNameVal });
+       setData(prev => prev.map(item => item.id === id ? { ...item, name: editNameVal } : item));
+       setEditingId(null);
+     } catch (err) {
+       console.error(err);
+       alert(t.errorGeneric);
+     }
+  };
+
+  return (
+    <div className="h-full flex flex-col pt-8 pb-32 px-4 animate-fadeIn">
+       <h2 className="text-3xl font-black mb-6 px-2">{t.navSquad}</h2>
+
+       {/* Tabs */}
+       <div className="flex p-1 bg-black/5 dark:bg-white/5 rounded-xl mb-6 mx-2">
+          {[
+            { id: 'players', label: t.dbPlayers },
+            { id: 'teams', label: t.dbTeams },
+            { id: 'leagues', label: t.dbLeagues }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => { setActiveTab(tab.id as any); setSearchQuery(''); }}
+              className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${
+                activeTab === tab.id 
+                  ? 'bg-white dark:bg-white/10 shadow-sm text-mint' 
+                  : 'text-obsidian/50 dark:text-ghost/50 hover:text-obsidian dark:hover:text-ghost'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+       </div>
+
+       {/* Search */}
+       <div className="relative mb-4 mx-2">
+         <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 opacity-40" />
+         <input 
+           type="text" 
+           value={searchQuery}
+           onChange={(e) => setSearchQuery(e.target.value)}
+           placeholder={t.searchPlaceholder}
+           className="w-full bg-white dark:bg-white/5 border border-obsidian/5 dark:border-ghost/5 rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 ring-mint/50 transition-all"
+         />
+       </div>
+
+       {/* List Content */}
+       <div className="flex-1 overflow-y-auto custom-scrollbar px-2 space-y-2">
+          {loading ? (
+             <div className="flex justify-center py-12"><ArrowPathIcon className="w-8 h-8 animate-spin text-mint" /></div>
+          ) : data.length === 0 ? (
+             <div className="text-center py-12 opacity-50">{t.noResults}</div>
+          ) : (
+             data.map((item, idx) => (
+                <div 
+                  key={item.id || idx}
+                  onClick={() => activeTab === 'players' && setSelectedPlayer(item)}
+                  className="group bg-white dark:bg-white/5 p-4 rounded-xl flex items-center justify-between hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer transition-colors border border-transparent hover:border-mint/20"
+                >
+                   <div className="flex items-center gap-4 overflow-hidden">
+                      {activeTab === 'players' && (
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${item.overall >= 85 ? 'bg-mint text-obsidian' : 'bg-black/10 dark:bg-white/10'}`}>
+                           {item.overall || '-'}
+                        </div>
+                      )}
+                      {activeTab !== 'players' && (
+                        <div className="w-10 h-10 rounded-full bg-black/5 dark:bg-white/5 flex items-center justify-center">
+                           <ShieldIcon item={item} />
+                        </div>
+                      )}
+                      
+                      <div className="min-w-0">
+                         {editingId === item.id ? (
+                           <input 
+                             value={editNameVal}
+                             onClick={(e) => e.stopPropagation()}
+                             onChange={(e) => setEditNameVal(e.target.value)}
+                             className="bg-transparent border-b border-mint outline-none w-full"
+                             autoFocus
+                           />
+                         ) : (
+                           <h4 className="font-bold truncate">{item.name}</h4>
+                         )}
+                         <p className="text-xs opacity-50 truncate">
+                            {activeTab === 'players' ? (item.team || item.position || 'Unknown') : (item.league || 'Unknown')}
+                         </p>
+                      </div>
+                   </div>
+
+                   <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {editingId === item.id ? (
+                        <button onClick={(e) => handleUpdateSave(item.id, e)} className="p-2 text-mint hover:bg-mint/10 rounded-lg">
+                           <CheckIcon className="w-5 h-5"/>
+                        </button>
+                      ) : activeTab !== 'leagues' && (
+                        <button onClick={(e) => handleUpdateStart(item, e)} className="p-2 text-obsidian dark:text-ghost hover:bg-black/5 dark:hover:bg-white/5 rounded-lg">
+                           <PencilSquareIcon className="w-5 h-5"/>
+                        </button>
+                      )}
+                      
+                      {activeTab !== 'leagues' && (
+                        <button onClick={(e) => handleDelete(item.id, e)} className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg">
+                           <TrashIcon className="w-5 h-5"/>
+                        </button>
+                      )}
+                   </div>
+                </div>
+             ))
+          )}
+       </div>
+
+       {/* Modals */}
+       {selectedPlayer && (
+         <PlayerDetailModal 
+           player={selectedPlayer} 
+           t={t} 
+           onClose={() => setSelectedPlayer(null)} 
+         />
+       )}
+    </div>
+  );
+};
+
+const ShieldIcon = ({ item }: any) => {
+   // Placeholder icon logic
+   return <div className="text-xs font-bold opacity-50">{item.name?.substring(0, 2).toUpperCase()}</div>
+}
 
 // --- Dashboard Components ---
 
@@ -1061,12 +1431,7 @@ export default function App() {
           )}
 
           {currentView === AppView.SQUAD && (
-            <div className="flex items-center justify-center h-[60vh] opacity-30">
-              <div className="text-center">
-                <CircleStackIcon className="w-16 h-16 mx-auto mb-4" />
-                <p>{t.navSquad} - Coming Soon</p>
-              </div>
-            </div>
+            <DatabaseView t={t} />
           )}
 
           {currentView === AppView.MARKET && (

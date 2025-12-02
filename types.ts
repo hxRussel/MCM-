@@ -50,6 +50,37 @@ export interface Career {
   rating: number; // 0-5 stars
 }
 
+export interface Team {
+  id: string;
+  name: string;
+  league: string;
+  [key: string]: any;
+}
+
+export interface Player {
+  id: string;
+  name: string;
+  teamId?: string;
+  team?: string;
+  overall: number;
+  position: string;
+  age: number;
+  height: number;
+  weight: number;
+  nationality?: string;
+  // Stats
+  acceleration?: number;
+  'sprint speed'?: number;
+  finishing?: number;
+  'shot power'?: number;
+  dribbling?: number;
+  'ball control'?: number;
+  def_awareness?: number;
+  standing_tackle?: number;
+  gk_diving?: number;
+  [key: string]: any; // Allow dynamic access for all CSV fields
+}
+
 export interface Translation {
   // Auth
   welcome: string;
@@ -115,4 +146,21 @@ export interface Translation {
   photoDeleted: string;
   nameUpdated: string;
   clickToUpload: string;
+
+  // Database
+  dbPlayers: string;
+  dbTeams: string;
+  dbLeagues: string;
+  searchPlaceholder: string;
+  noResults: string;
+  deleteConfirm: string;
+  itemDeleted: string;
+  itemUpdated: string;
+  editName: string;
+  statsTitle: string;
+  physical: string;
+  technical: string;
+  defending: string;
+  goalkeeping: string;
+  mental: string;
 }

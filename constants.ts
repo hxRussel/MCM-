@@ -65,7 +65,24 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     photoUpdated: "Photo updated successfully",
     photoDeleted: "Photo removed",
     nameUpdated: "Nickname updated",
-    clickToUpload: "Tap to upload"
+    clickToUpload: "Tap to upload",
+
+    // Database
+    dbPlayers: "Players",
+    dbTeams: "Teams",
+    dbLeagues: "Leagues",
+    searchPlaceholder: "Search database...",
+    noResults: "No results found.",
+    deleteConfirm: "Are you sure you want to delete this item?",
+    itemDeleted: "Item deleted.",
+    itemUpdated: "Item updated.",
+    editName: "Edit Name",
+    statsTitle: "Scout Report",
+    physical: "Physical",
+    technical: "Technical",
+    defending: "Defending",
+    goalkeeping: "Goalkeeping",
+    mental: "Mental"
   },
   [Language.IT]: {
     welcome: "Benvenuto su MCM+",
@@ -130,7 +147,24 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     photoUpdated: "Foto aggiornata con successo",
     photoDeleted: "Foto rimossa",
     nameUpdated: "Nickname aggiornato",
-    clickToUpload: "Tocca per caricare"
+    clickToUpload: "Tocca per caricare",
+
+    // Database
+    dbPlayers: "Giocatori",
+    dbTeams: "Squadre",
+    dbLeagues: "Campionati",
+    searchPlaceholder: "Cerca nel database...",
+    noResults: "Nessun risultato trovato.",
+    deleteConfirm: "Sei sicuro di voler eliminare questo elemento?",
+    itemDeleted: "Elemento eliminato.",
+    itemUpdated: "Elemento aggiornato.",
+    editName: "Modifica Nome",
+    statsTitle: "Report Scout",
+    physical: "Fisico",
+    technical: "Tecnico",
+    defending: "Difesa",
+    goalkeeping: "Portiere",
+    mental: "Mentale"
   }
 };
 
