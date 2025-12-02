@@ -34,7 +34,7 @@ import {
   ExclamationCircleIcon,
   EyeIcon,
   EyeSlashIcon,
-  HomeIcon,
+  HomeIcon, 
   CircleStackIcon,
   CurrencyDollarIcon,
   Cog6ToothIcon,
@@ -725,6 +725,7 @@ const CareerDetailModal = ({ career, t, onClose, userId }: { career: Career, t: 
     
     try {
       const batch = writeBatch(db);
+      // Use userId prop here instead of the undefined 'user' variable
       const q = query(collection(db, 'careers'), where('userId', '==', userId));
       const snap = await getDocs(q);
       
@@ -1064,7 +1065,7 @@ const DatabaseView = ({ t }: { t: any }) => {
   };
 
   return (
-    <div className="h-full flex flex-col pt-8 px-4 animate-fadeIn">
+    <div className="h-full flex flex-col pt-24 px-4 animate-fadeIn">
        <h2 className="text-3xl font-black mb-6 px-2">{t.navSquad}</h2>
        <div className="flex p-1 bg-black/5 dark:bg-white/5 rounded-xl mb-6 mx-2 shrink-0">
           {[
@@ -1180,7 +1181,7 @@ const CareerCard: React.FC<{ career: Career, t: any, onClick: () => void }> = ({
   return (
     <div 
       onClick={onClick}
-      className={`group relative min-w-[280px] w-[80%] max-w-[320px] h-[420px] rounded-3xl overflow-hidden cursor-pointer shadow-2xl transition-all duration-300 hover:scale-[1.02] snap-center flex flex-col justify-between border ${career.isActive ? 'border-mint' : 'border-white/5'}`}
+      className={`group relative min-w-[280px] w-[80%] max-w-[320px] h-[420px] rounded-3xl overflow-hidden cursor-pointer transition-all duration-300 hover:scale-[1.02] snap-center flex flex-col justify-between border ${career.isActive ? 'border-mint' : 'border-white/5'}`}
     >
       <div className="absolute inset-0 bg-gradient-to-br from-[#1c1c1e] to-[#2c2c2e]"></div>
       <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-10 transition-opacity"></div>
@@ -1195,14 +1196,14 @@ const CareerCard: React.FC<{ career: Career, t: any, onClick: () => void }> = ({
               {career.season}
             </div>
             {career.isActive && (
-              <div className="bg-mint text-obsidian px-2 py-0.5 rounded text-xs font-bold uppercase shadow-[0_0_15px_rgba(152,255,152,0.4)]">
+              <div className="bg-mint text-obsidian px-2 py-0.5 rounded text-xs font-bold uppercase">
                 Active
               </div>
             )}
          </div>
 
          <div className="mt-auto">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-mint to-mint-hover text-obsidian flex items-center justify-center font-black text-3xl mb-4 shadow-lg shadow-mint/20">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-mint to-mint-hover text-obsidian flex items-center justify-center font-black text-3xl mb-4">
               {career.teamName.charAt(0)}
             </div>
             <h3 className="text-3xl font-black uppercase tracking-tight leading-none mb-1 text-white">
@@ -1226,9 +1227,9 @@ const AddCareerCard: React.FC<{ t: any, onClick: () => void }> = ({ t, onClick }
   return (
     <div 
       onClick={onClick}
-      className="group relative min-w-[280px] w-[80%] max-w-[320px] h-[420px] rounded-3xl overflow-hidden cursor-pointer shadow-lg bg-ghost dark:bg-white/5 border-2 border-dashed border-obsidian/10 dark:border-ghost/10 flex flex-col items-center justify-center text-center p-6 snap-center hover:border-mint transition-colors duration-300"
+      className="group relative min-w-[280px] w-[80%] max-w-[320px] h-[420px] rounded-3xl overflow-hidden cursor-pointer bg-ghost dark:bg-white/5 border-2 border-dashed border-obsidian/10 dark:border-ghost/10 flex flex-col items-center justify-center text-center p-6 snap-center hover:border-mint transition-colors duration-300"
     >
-      <div className="w-20 h-20 rounded-full bg-mint/10 group-hover:bg-mint flex items-center justify-center mb-6 transition-all duration-300 shadow-lg shadow-mint/10">
+      <div className="w-20 h-20 rounded-full bg-mint/10 group-hover:bg-mint flex items-center justify-center mb-6 transition-all duration-300">
         <PlusIcon className="w-10 h-10 text-mint group-hover:text-obsidian transition-colors duration-300" />
       </div>
       <h3 className="text-xl font-bold mb-2">{t.addTeam}</h3>
@@ -1795,16 +1796,19 @@ export default function App() {
     return (
       <div className="min-h-screen bg-ghost dark:bg-obsidian text-obsidian dark:text-ghost font-sans relative overflow-hidden transition-colors duration-300">
         {currentView !== AppView.PROFILE && (
-          <div className="pt-8 px-6 pb-4 flex justify-between items-center z-20 relative animate-fadeIn">
-             <div><p className="text-sm opacity-60 font-medium mb-0.5">{t.welcome}</p><h1 className="text-2xl font-bold tracking-tight">{userName}</h1></div>
-             <button onClick={() => setCurrentView(AppView.PROFILE)} className="w-10 h-10 rounded-full bg-mint flex items-center justify-center shadow-lg shadow-mint/20 hover:scale-105 transition-transform overflow-hidden">
+          <div className="fixed top-6 left-0 w-full px-6 flex justify-between items-start z-30 pointer-events-none animate-fadeIn">
+             <div className="bg-white/80 dark:bg-obsidian/80 backdrop-blur-md border border-obsidian/5 dark:border-ghost/5 rounded-2xl px-4 py-2 shadow-sm pointer-events-auto">
+                 <p className="text-[10px] opacity-60 font-bold uppercase tracking-wider mb-0.5">{t.welcome}</p>
+                 <h1 className="text-lg font-black tracking-tight leading-none">{userName}</h1>
+             </div>
+             <button onClick={() => setCurrentView(AppView.PROFILE)} className="w-10 h-10 rounded-full bg-mint flex items-center justify-center shadow-sm hover:scale-105 transition-transform overflow-hidden pointer-events-auto border-2 border-white dark:border-obsidian">
                 {userAvatar || user.photoURL ? (<img src={userAvatar || user.photoURL} alt="User" className="w-full h-full object-cover" />) : (<UserCircleIcon className="w-6 h-6 text-obsidian" />)}
              </button>
           </div>
         )}
         <div className="h-full overflow-y-auto overflow-x-hidden">
           {currentView === AppView.HOME && (
-            <div className="flex flex-col h-full justify-center pb-32">
+            <div className="flex flex-col h-full justify-center pb-32 pt-20">
               <div className="w-full overflow-x-auto pb-8 pt-4 hide-scrollbar snap-x flex gap-6 px-8 items-center" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                 <AddCareerCard t={t} onClick={() => setShowAddCareerModal(true)} />
                 {careers.map(career => (<CareerCard key={career.id} career={career} t={t} onClick={() => setSelectedCareer(career)} />))}
