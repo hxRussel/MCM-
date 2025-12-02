@@ -1,5 +1,29 @@
 
-import { Language, Translation, Career } from './types';
+import { Language, Translation, Career, Player } from './types';
+
+export const MOCK_CAREER: Career = {
+  id: 'mock-career-1',
+  userId: 'mock-user',
+  teamId: 'mock-real-madrid',
+  teamName: 'Real Madrid (Mock)',
+  managerName: 'Carlo Ancelotti',
+  season: '2025/2026',
+  seasonOffset: 0,
+  lastPlayed: new Date().toISOString(),
+  rating: 5,
+  isActive: true,
+  logoUrl: 'https://images.unsplash.com/photo-1522778119026-d647f0565c6a?q=80&w=2070&auto=format&fit=crop',
+  playerOverrides: {} 
+};
+
+export const MOCK_PLAYERS: Player[] = [
+  { id: 'm1', name: 'Vinicius Jr', position: 'LW', overall: 89, age: 23, height: 176, weight: 73, teamId: 'mock-real-madrid', team: 'Real Madrid', acceleration: 95, 'sprint speed': 95, dribbling: 90, finishing: 84 },
+  { id: 'm2', name: 'Jude Bellingham', position: 'CAM', overall: 87, age: 20, height: 186, weight: 75, teamId: 'mock-real-madrid', team: 'Real Madrid', vision: 88, 'short passing': 89, stamina: 92 },
+  { id: 'm3', name: 'Thibaut Courtois', position: 'GK', overall: 90, age: 31, height: 200, weight: 96, teamId: 'mock-real-madrid', team: 'Real Madrid', 'gk diving': 85, 'gk reflexes': 93 },
+  { id: 'm4', name: 'Luka Modric', position: 'CM', overall: 86, age: 38, height: 172, weight: 66, teamId: 'mock-real-madrid', team: 'Real Madrid', vision: 92, 'ball control': 90 },
+  { id: 'm5', name: 'Antonio Rüdiger', position: 'CB', overall: 85, age: 31, height: 190, weight: 85, teamId: 'mock-real-madrid', team: 'Real Madrid', strength: 90, aggression: 92, 'standing tackle': 87 },
+  { id: 'm6', name: 'Rodrygo', position: 'RW', overall: 85, age: 23, height: 174, weight: 64, teamId: 'mock-real-madrid', team: 'Real Madrid', acceleration: 89, dribbling: 88 },
+];
 
 export const TRANSLATIONS: Record<Language, Translation> = {
   [Language.EN]: {
@@ -38,6 +62,25 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     continueCareer: "Continue Career",
     lastPlayed: "Last played",
     season: "Season",
+    activeCareer: "Active Career",
+    makeActive: "Set as Active Career",
+    managerName: "Manager Name",
+    selectTeam: "Select Team",
+    endSeason: "End Season (+1 Age)",
+    seasonEnded: "Season ended. Players aged up.",
+    confirmEndSeason: "Are you sure you want to end the season? All players in this career will age by 1 year.",
+
+    // Squad Management
+    squadList: "Squad List",
+    goalkeepers: "Goalkeepers",
+    defenders: "Defenders",
+    midfielders: "Midfielders",
+    forwards: "Forwards",
+    sellPlayer: "Sell",
+    playerSold: "Player released to Free Agents",
+    updateOverall: "Update Overall",
+    newOverall: "New Ovr",
+    statsSaved: "Stats saved for this career.",
 
     // Generic
     editProfile: "Edit Profile",
@@ -74,6 +117,7 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     searchPlaceholder: "Search database...",
     noResults: "No results found.",
     deleteConfirm: "Are you sure you want to delete this item?",
+    deleteCareerConfirm: "Are you sure? This will delete the career save permanently.",
     itemDeleted: "Item deleted.",
     itemUpdated: "Item updated.",
     editName: "Edit Name",
@@ -120,6 +164,25 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     continueCareer: "Continua Carriera",
     lastPlayed: "Ultimo accesso",
     season: "Stagione",
+    activeCareer: "Carriera Attiva",
+    makeActive: "Imposta come Carriera Attiva",
+    managerName: "Nome Allenatore",
+    selectTeam: "Seleziona Squadra",
+    endSeason: "Termina Stagione (+1 Età)",
+    seasonEnded: "Stagione terminata. Età giocatori aggiornata.",
+    confirmEndSeason: "Sei sicuro di voler terminare la stagione? Tutti i giocatori di questa carriera invecchieranno di 1 anno.",
+
+    // Squad Management
+    squadList: "Rosa Squadra",
+    goalkeepers: "Portieri",
+    defenders: "Difensori",
+    midfielders: "Centrocampisti",
+    forwards: "Attaccanti",
+    sellPlayer: "Vendi",
+    playerSold: "Giocatore svincolato tra i Free Agents",
+    updateOverall: "Aggiorna Overall",
+    newOverall: "Nuovo Ovr",
+    statsSaved: "Statistiche salvate per questa carriera.",
 
     // Generic
     editProfile: "Modifica Profilo",
@@ -156,6 +219,7 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     searchPlaceholder: "Cerca nel database...",
     noResults: "Nessun risultato trovato.",
     deleteConfirm: "Sei sicuro di voler eliminare questo elemento?",
+    deleteCareerConfirm: "Sei sicuro? Questo eliminerà definitivamente il salvataggio della carriera.",
     itemDeleted: "Elemento eliminato.",
     itemUpdated: "Elemento aggiornato.",
     editName: "Modifica Nome",
@@ -167,24 +231,3 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     mental: "Mentale"
   }
 };
-
-export const MOCK_CAREERS: Career[] = [
-  {
-    id: '1',
-    teamName: 'Manchester City',
-    managerName: 'Pep Guardiola',
-    season: '2024/2025',
-    lastPlayed: '2h ago',
-    rating: 5,
-    logoUrl: 'https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?q=80&w=2070&auto=format&fit=crop'
-  },
-  {
-    id: '2',
-    teamName: 'Como 1907',
-    managerName: 'Cesc Fàbregas',
-    season: '2023/2024',
-    lastPlayed: '1d ago',
-    rating: 3,
-    logoUrl: 'https://images.unsplash.com/photo-1522778119026-d647f0565c6a?q=80&w=2070&auto=format&fit=crop'
-  }
-];

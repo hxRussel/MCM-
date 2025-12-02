@@ -42,12 +42,17 @@ export interface UserData {
 
 export interface Career {
   id: string;
+  userId: string;
+  teamId: string;
   teamName: string;
   managerName: string;
   season: string;
-  lastPlayed: string; // ISO Date string or formatted string
-  logoUrl?: string; // URL for team background/logo
+  seasonOffset?: number; // Added to track years passed
+  lastPlayed: string; // ISO Date string
   rating: number; // 0-5 stars
+  isActive: boolean;
+  logoUrl?: string; // Optional
+  playerOverrides?: Record<string, { overall?: number }>; // Stores local changes to players (ID -> changes)
 }
 
 export interface Team {
@@ -118,6 +123,25 @@ export interface Translation {
   continueCareer: string;
   lastPlayed: string;
   season: string;
+  activeCareer: string;
+  makeActive: string;
+  managerName: string;
+  selectTeam: string;
+  endSeason: string;
+  seasonEnded: string;
+  confirmEndSeason: string;
+  
+  // Squad Management
+  squadList: string;
+  goalkeepers: string;
+  defenders: string;
+  midfielders: string;
+  forwards: string;
+  sellPlayer: string;
+  playerSold: string;
+  updateOverall: string;
+  newOverall: string;
+  statsSaved: string;
   
   // Generic
   editProfile: string;
@@ -154,6 +178,7 @@ export interface Translation {
   searchPlaceholder: string;
   noResults: string;
   deleteConfirm: string;
+  deleteCareerConfirm: string;
   itemDeleted: string;
   itemUpdated: string;
   editName: string;

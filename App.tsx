@@ -13,6 +13,7 @@ import {
   doc, 
   collection, 
   setDoc, 
+  addDoc, 
   onSnapshot,
   query,
   limit,
@@ -26,7 +27,7 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from './services/firebase';
 import { Language, Theme, AppView, Career, Currency, WageFrequency, MeasurementSystem, Player, Team } from './types';
-import { TRANSLATIONS, MOCK_CAREERS } from './constants';
+import { TRANSLATIONS, MOCK_CAREER, MOCK_PLAYERS } from './constants';
 import { 
   SunIcon, 
   MoonIcon, 
@@ -57,7 +58,8 @@ import {
   CalendarDaysIcon,
   MagnifyingGlassIcon,
   FunnelIcon,
-  ChartBarIcon
+  ChartBarIcon,
+  UserGroupIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 
@@ -162,14 +164,182 @@ const ToggleButton = ({ active, onClick, children, title, className = '' }: any)
   </button>
 );
 
+const ConfirmationModal = ({ 
+  isOpen, 
+  onClose, 
+  onConfirm, 
+  title, 
+  message, 
+  confirmText = "Confirm", 
+  cancelText = "Cancel" 
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  onConfirm: () => void; 
+  title: string; 
+  message: string;
+  confirmText?: string;
+  cancelText?: string;
+}) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fadeIn">
+      <div className="bg-white dark:bg-obsidian w-full max-w-sm rounded-2xl shadow-2xl border border-white/10 p-6 animate-scaleIn">
+        <h3 className="text-lg font-bold mb-2">{title}</h3>
+        <p className="opacity-70 text-sm mb-6">{message}</p>
+        <div className="flex gap-3">
+          <Button variant="ghost" onClick={onClose} className="!py-2">{cancelText}</Button>
+          <Button variant="primary" onClick={onConfirm} className="!py-2">{confirmText}</Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- Modals ---
+
+const AddCareerModal = ({ t, userId, onClose }: { t: any, userId: string, onClose: () => void }) => {
+  const [step, setStep] = useState(1);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
+  const [managerName, setManagerName] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  // Debounced search for teams
+  useEffect(() => {
+    if (step !== 1 || searchTerm.length < 2) return;
+    
+    const delaySearch = setTimeout(async () => {
+      try {
+        const q = query(
+          collection(db, 'teams'),
+          orderBy('name'),
+          startAt(searchTerm),
+          endAt(searchTerm + '\uf8ff'),
+          limit(10)
+        );
+        const snap = await getDocs(q);
+        setTeams(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Team)));
+      } catch (err) {
+        console.error(err);
+      }
+    }, 400);
+
+    return () => clearTimeout(delaySearch);
+  }, [searchTerm, step]);
+
+  const handleCreate = async () => {
+    if (!selectedTeam || !managerName) return;
+    setLoading(true);
+    try {
+      const newCareer: Omit<Career, 'id'> = {
+        userId,
+        teamId: selectedTeam.id,
+        teamName: selectedTeam.name,
+        managerName,
+        season: "2025/2026",
+        seasonOffset: 0,
+        lastPlayed: new Date().toISOString(),
+        isActive: false, 
+        rating: 3,
+        logoUrl: "", 
+        playerOverrides: {}
+      };
+
+      await addDoc(collection(db, 'careers'), newCareer);
+      onClose();
+    } catch (err) {
+      console.error(err);
+      alert(t.errorGeneric);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn">
+      <div className="bg-white dark:bg-obsidian w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-slideUp border border-white/10">
+        <div className="p-6 border-b border-obsidian/5 dark:border-ghost/5 flex justify-between items-center">
+           <h2 className="text-xl font-black">{t.newCareer}</h2>
+           <button onClick={onClose}><XMarkIcon className="w-6 h-6"/></button>
+        </div>
+        
+        <div className="p-6">
+          {step === 1 && (
+            <>
+              <h3 className="text-sm font-bold opacity-70 mb-2 uppercase">{t.selectTeam}</h3>
+              <div className="relative mb-4">
+                 <input 
+                   className="w-full bg-black/5 dark:bg-white/5 rounded-xl px-4 py-3 outline-none focus:ring-2 ring-mint"
+                   placeholder={t.searchPlaceholder}
+                   value={searchTerm}
+                   onChange={e => setSearchTerm(e.target.value)}
+                   autoFocus
+                 />
+                 <MagnifyingGlassIcon className="absolute right-4 top-3.5 w-5 h-5 opacity-50"/>
+              </div>
+              <div className="h-48 overflow-y-auto custom-scrollbar space-y-2 mb-4">
+                 {teams.map(team => (
+                   <div 
+                     key={team.id}
+                     onClick={() => setSelectedTeam(team)}
+                     className={`p-3 rounded-lg cursor-pointer flex justify-between items-center transition-colors ${selectedTeam?.id === team.id ? 'bg-mint text-obsidian' : 'bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10'}`}
+                   >
+                     <span className="font-bold">{team.name}</span>
+                     <span className="text-xs opacity-60">{team.league}</span>
+                   </div>
+                 ))}
+                 {searchTerm.length > 1 && teams.length === 0 && (
+                   <p className="text-center opacity-50 py-4">{t.noResults}</p>
+                 )}
+              </div>
+              <Button disabled={!selectedTeam} onClick={() => setStep(2)}>{t.continueCareer}</Button>
+            </>
+          )}
+
+          {step === 2 && (
+            <>
+               <h3 className="text-sm font-bold opacity-70 mb-2 uppercase">{t.managerName}</h3>
+               <input 
+                  className="w-full bg-black/5 dark:bg-white/5 rounded-xl px-4 py-3 outline-none focus:ring-2 ring-mint mb-6"
+                  placeholder="Pep Guardiola"
+                  value={managerName}
+                  onChange={e => setManagerName(e.target.value)}
+                  autoFocus
+               />
+               <div className="bg-mint/10 p-4 rounded-xl mb-6 flex items-center gap-4">
+                  <div className="w-12 h-12 bg-mint rounded-full flex items-center justify-center font-bold text-xl text-obsidian">
+                    {selectedTeam?.name.charAt(0)}
+                  </div>
+                  <div>
+                    <div className="font-bold">{selectedTeam?.name}</div>
+                    <div className="text-xs opacity-60">{selectedTeam?.league}</div>
+                  </div>
+               </div>
+               <div className="flex gap-3">
+                 <Button variant="ghost" onClick={() => setStep(1)}>{t.cancel}</Button>
+                 <Button disabled={!managerName || loading} onClick={handleCreate}>
+                   {loading ? <ArrowPathIcon className="w-5 h-5 animate-spin"/> : t.createCareer}
+                 </Button>
+               </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- Player Detail Modal ---
-const PlayerDetailModal = ({ player, onClose, t }: { player: Player, onClose: () => void, t: any }) => {
+const PlayerDetailModal = ({ player, onClose, t, onSave }: { player: Player, onClose: () => void, t: any, onSave?: (id: string, newOverall: number) => void }) => {
+  const [editedOverall, setEditedOverall] = useState(player.overall);
+
   if (!player) return null;
 
-  // Helper to get stats safely (case insensitive check done at component level or assuming CSV keys)
   const getStat = (key: string) => player[key] || player[key.toLowerCase()] || 0;
   
-  // Group stats for display
   const statGroups = [
     {
       title: t.physical,
@@ -205,10 +375,18 @@ const PlayerDetailModal = ({ player, onClose, t }: { player: Player, onClose: ()
         { label: 'Stand Tackle', val: getStat('standing tackle') },
         { label: 'Slide Tackle', val: getStat('sliding tackle') },
       ]
+    },
+    {
+      title: t.mental,
+      stats: [
+        { label: 'Aggression', val: getStat('aggression') },
+        { label: 'Reactions', val: getStat('reactions') },
+        { label: 'Composure', val: getStat('composure') },
+        { label: 'Positioning', val: getStat('positioning') },
+      ]
     }
   ];
 
-  // Add GK stats if applicable
   if (player.position === 'GK') {
     statGroups.unshift({
       title: t.goalkeeping,
@@ -229,15 +407,17 @@ const PlayerDetailModal = ({ player, onClose, t }: { player: Player, onClose: ()
     return 'text-gray-400';
   };
 
+  const handleSave = () => {
+    if (onSave) onSave(player.id, Number(editedOverall));
+  };
+
   return (
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 animate-fadeIn">
       <div className="bg-white dark:bg-obsidian w-full max-w-2xl h-[90vh] sm:h-auto max-h-[90vh] rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-slideUp">
-        
-        {/* Header */}
         <div className="p-6 bg-gradient-to-br from-mint/20 to-transparent border-b border-obsidian/5 dark:border-ghost/5 flex justify-between items-start">
            <div className="flex gap-4">
-              <div className="w-20 h-20 rounded-full bg-white dark:bg-white/10 flex items-center justify-center text-3xl font-black shadow-lg">
-                 <span className={getOverallColor(player.overall)}>{player.overall}</span>
+              <div className="w-20 h-20 rounded-full bg-white dark:bg-white/10 flex items-center justify-center text-3xl font-black shadow-lg relative">
+                 <span className={getOverallColor(editedOverall)}>{editedOverall}</span>
               </div>
               <div>
                 <h2 className="text-2xl font-black uppercase leading-none mb-1">{player.name}</h2>
@@ -250,14 +430,28 @@ const PlayerDetailModal = ({ player, onClose, t }: { player: Player, onClose: ()
                    <span>{player.height} cm</span>
                    <span>{player.weight} kg</span>
                 </div>
+                {onSave && (
+                   <div className="mt-3 flex items-center gap-2">
+                      <div className="flex items-center gap-1 bg-white/10 rounded-lg p-1">
+                        <span className="text-xs uppercase font-bold px-2">{t.newOverall}</span>
+                        <input 
+                          type="number" 
+                          value={editedOverall} 
+                          onChange={(e) => setEditedOverall(Number(e.target.value))}
+                          className="w-12 bg-black/10 dark:bg-white/20 rounded px-1 py-0.5 text-center text-sm font-bold outline-none focus:ring-1 ring-mint"
+                        />
+                      </div>
+                      <button onClick={handleSave} className="bg-mint text-obsidian px-3 py-1 rounded-lg text-xs font-bold hover:bg-mint-hover shadow-sm">
+                        {t.save}
+                      </button>
+                   </div>
+                )}
               </div>
            </div>
            <button onClick={onClose} className="p-2 bg-black/5 dark:bg-white/5 rounded-full hover:bg-black/10 dark:hover:bg-white/10">
               <XMarkIcon className="w-6 h-6"/>
            </button>
         </div>
-
-        {/* Stats Grid */}
         <div className="p-6 overflow-y-auto custom-scrollbar">
            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               {statGroups.map((group, idx) => (
@@ -285,9 +479,301 @@ const PlayerDetailModal = ({ player, onClose, t }: { player: Player, onClose: ()
               ))}
            </div>
         </div>
-
       </div>
     </div>
+  );
+};
+
+const CareerDetailModal = ({ career, t, onClose, userId }: { career: Career, t: any, onClose: () => void, userId: string }) => {
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedPlayerForEdit, setSelectedPlayerForEdit] = useState<Player | null>(null);
+  const [showEndSeasonConfirm, setShowEndSeasonConfirm] = useState(false);
+
+  // Fetch Squad and Apply Overrides
+  useEffect(() => {
+    // MOCK DATA HANDLING
+    if (career.id === MOCK_CAREER.id) {
+       setPlayers(MOCK_PLAYERS.map(p => ({
+         ...p,
+         age: p.age + (career.seasonOffset || 0)
+       })));
+       setLoading(false);
+       return;
+    }
+
+    const fetchSquad = async () => {
+      if (!career.teamId) return;
+      try {
+        const q = query(collection(db, 'players'), where('teamId', '==', career.teamId));
+        const snap = await getDocs(q);
+        let pl = snap.docs.map(d => ({ id: d.id, ...doc.data() } as Player));
+        
+        // Apply career specific overrides
+        pl = pl.map(p => {
+           const override = career.playerOverrides?.[p.id];
+           return {
+             ...p,
+             age: p.age + (career.seasonOffset || 0),
+             overall: override?.overall || p.overall
+           };
+        });
+
+        pl.sort((a, b) => b.overall - a.overall);
+        setPlayers(pl);
+      } catch (err) {
+        console.error("Squad fetch error", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSquad();
+  }, [career.id, career.teamId, career.seasonOffset, career.playerOverrides]);
+
+  const handleDelete = async () => {
+    if (career.id === MOCK_CAREER.id) {
+       alert("Mock career cannot be deleted.");
+       return;
+    }
+
+    if (!window.confirm(t.deleteCareerConfirm)) return;
+    try {
+      await deleteDoc(doc(db, 'careers', career.id));
+      onClose();
+    } catch (err) {
+      console.error(err);
+      alert(t.errorGeneric);
+    }
+  };
+
+  const executeEndSeason = async () => {
+    setShowEndSeasonConfirm(false);
+
+    if (career.id === MOCK_CAREER.id) {
+       // Simulate age increase locally for immediate feedback
+       setPlayers(prev => prev.map(p => ({...p, age: p.age + 1})));
+       return;
+    }
+
+    try {
+      const newOffset = (career.seasonOffset || 0) + 1;
+      await updateDoc(doc(db, 'careers', career.id), {
+        seasonOffset: newOffset
+      });
+      // The parent listener will update the career prop, which triggers useEffect to re-fetch/re-calc
+    } catch (err) {
+      console.error(err);
+      alert(t.errorGeneric);
+    }
+  };
+
+  const handleToggleActive = async () => {
+    if (career.isActive) return;
+    if (career.id === MOCK_CAREER.id) {
+       alert("Mock career set as active (Simulated).");
+       return;
+    }
+    
+    try {
+      const batch = writeBatch(db);
+      const q = query(collection(db, 'careers'), where('userId', '==', userId));
+      const snap = await getDocs(q);
+      
+      snap.docs.forEach(d => {
+        batch.update(doc(db, 'careers', d.id), { isActive: false });
+      });
+      
+      batch.update(doc(db, 'careers', career.id), { isActive: true });
+      await batch.commit();
+      onClose();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleSellPlayer = async (playerId: string) => {
+    if (!window.confirm("Confirm sale? Player will become Free Agent.")) return;
+    
+    if (career.id === MOCK_CAREER.id) {
+       setPlayers(prev => prev.filter(p => p.id !== playerId));
+       return;
+    }
+
+    try {
+      await updateDoc(doc(db, 'players', playerId), {
+        teamId: null,
+        team: "Free Agent"
+      });
+      setPlayers(prev => prev.filter(p => p.id !== playerId));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleSavePlayerStats = async (playerId: string, newOverall: number) => {
+    if (career.id === MOCK_CAREER.id) {
+       setPlayers(prev => prev.map(p => p.id === playerId ? { ...p, overall: newOverall } : p));
+       setSelectedPlayerForEdit(null);
+       alert("Mock stats updated locally.");
+       return;
+    }
+
+    try {
+       await updateDoc(doc(db, 'careers', career.id), {
+         [`playerOverrides.${playerId}.overall`]: newOverall
+       });
+       setSelectedPlayerForEdit(null);
+       alert(t.statsSaved);
+    } catch (e) {
+      console.error(e);
+      alert(t.errorGeneric);
+    }
+  };
+
+  const groupedPlayers = useMemo(() => {
+    const groups = {
+      gk: players.filter(p => p.position === 'GK'),
+      def: players.filter(p => ['CB', 'LB', 'RB', 'LWB', 'RWB'].includes(p.position)),
+      mid: players.filter(p => ['CM', 'CDM', 'CAM', 'LM', 'RM'].includes(p.position)),
+      fwd: players.filter(p => ['ST', 'CF', 'LW', 'RW'].includes(p.position))
+    };
+    return groups;
+  }, [players]);
+
+  const renderPlayerGroup = (title: string, list: Player[]) => (
+    <div className="mb-6">
+      <h4 className="text-xs font-bold uppercase opacity-50 mb-3 tracking-wider border-b border-white/10 pb-1">{title} ({list.length})</h4>
+      <div className="space-y-2">
+         {list.map(p => (
+           <div 
+             key={p.id} 
+             onClick={() => setSelectedPlayerForEdit(p)}
+             className="bg-black/5 dark:bg-white/5 p-3 rounded-xl flex items-center justify-between cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+           >
+              <div className="flex items-center gap-3">
+                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${p.overall >= 85 ? 'bg-mint text-obsidian' : 'bg-white/10'}`}>
+                    {p.overall}
+                 </div>
+                 <div>
+                    <div className="font-bold text-sm">{p.name}</div>
+                    <div className="text-[10px] opacity-60 font-mono">
+                      {p.position} | {p.age}yo
+                    </div>
+                 </div>
+              </div>
+              <button 
+                onClick={(e) => { e.stopPropagation(); handleSellPlayer(p.id); }}
+                className="text-red-400 bg-red-500/10 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-500/20 transition-colors"
+              >
+                {t.sellPlayer}
+              </button>
+           </div>
+         ))}
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-md animate-fadeIn">
+        <div className="bg-white dark:bg-obsidian w-full sm:max-w-4xl h-[95vh] sm:h-[85vh] rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-slideUp border border-white/5">
+          
+          {/* Header */}
+          <div className="relative h-48 shrink-0 bg-gradient-to-br from-[#1c1c1e] to-[#2c2c2e]">
+             <div className="absolute top-4 right-4 z-20 flex gap-2">
+                <button 
+                  onClick={handleDelete}
+                  className="p-2 bg-red-500/20 text-red-500 rounded-full hover:bg-red-500 hover:text-white transition-all"
+                  title={t.deleteConfirm}
+                >
+                  <TrashIcon className="w-5 h-5"/>
+                </button>
+                <button onClick={onClose} className="p-2 bg-white/10 text-white rounded-full hover:bg-white/20">
+                  <XMarkIcon className="w-5 h-5"/>
+                </button>
+             </div>
+
+             <div className="absolute bottom-6 left-6 z-20 text-white">
+                <div className="flex items-center gap-3 mb-2">
+                   <div className="w-12 h-12 bg-mint rounded-2xl flex items-center justify-center text-obsidian font-black text-xl shadow-lg shadow-mint/20">
+                     {career.teamName.charAt(0)}
+                   </div>
+                   <div>
+                      <h2 className="text-3xl font-black uppercase tracking-tight leading-none">{career.teamName}</h2>
+                      <p className="opacity-60 font-medium text-sm">{career.managerName}</p>
+                   </div>
+                </div>
+                <div className="flex items-center gap-3 mt-4">
+                   <div className="bg-black/30 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 text-xs font-mono text-mint">
+                     {career.season}
+                   </div>
+                   {career.isActive && (
+                      <div className="flex items-center gap-1 bg-mint/20 px-2 py-0.5 rounded text-xs text-mint font-bold uppercase">
+                        <CheckCircleIcon className="w-3 h-3"/> Active
+                      </div>
+                   )}
+                </div>
+             </div>
+          </div>
+
+          {/* Controls */}
+          <div className="px-6 py-4 border-b border-obsidian/5 dark:border-ghost/5 flex flex-wrap gap-4 items-center justify-between bg-white dark:bg-white/5">
+             <div className="flex items-center gap-4">
+                <label className="flex items-center cursor-pointer relative">
+                  <input type="checkbox" checked={career.isActive} onChange={handleToggleActive} className="sr-only peer" disabled={career.isActive}/>
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-mint"></div>
+                  <span className="ml-3 text-sm font-medium">{t.activeCareer}</span>
+                </label>
+             </div>
+             
+             <Button variant="secondary" onClick={() => setShowEndSeasonConfirm(true)} className="!w-auto !py-2 !px-4 text-xs">
+               <CalendarDaysIcon className="w-4 h-4 mr-2"/> {t.endSeason}
+             </Button>
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+             <div className="flex items-center gap-2 mb-6">
+                <UserGroupIcon className="w-5 h-5 text-mint"/>
+                <h3 className="font-bold text-lg">{t.squadList}</h3>
+             </div>
+
+             {loading ? (
+               <div className="flex justify-center py-12"><ArrowPathIcon className="w-8 h-8 animate-spin text-mint"/></div>
+             ) : players.length === 0 ? (
+               <p className="text-center opacity-50 py-12">No players found in this team.</p>
+             ) : (
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {groupedPlayers.gk.length > 0 && renderPlayerGroup(t.goalkeepers, groupedPlayers.gk)}
+                  {groupedPlayers.def.length > 0 && renderPlayerGroup(t.defenders, groupedPlayers.def)}
+                  {groupedPlayers.mid.length > 0 && renderPlayerGroup(t.midfielders, groupedPlayers.mid)}
+                  {groupedPlayers.fwd.length > 0 && renderPlayerGroup(t.forwards, groupedPlayers.fwd)}
+               </div>
+             )}
+          </div>
+        </div>
+      </div>
+      
+      {/* Modals */}
+      {selectedPlayerForEdit && (
+        <PlayerDetailModal 
+          player={selectedPlayerForEdit} 
+          t={t} 
+          onClose={() => setSelectedPlayerForEdit(null)} 
+          onSave={handleSavePlayerStats}
+        />
+      )}
+
+      <ConfirmationModal 
+        isOpen={showEndSeasonConfirm}
+        onClose={() => setShowEndSeasonConfirm(false)}
+        onConfirm={executeEndSeason}
+        title={t.endSeason}
+        message={t.confirmEndSeason}
+        confirmText="Confirm +1 Age"
+        cancelText={t.cancel}
+      />
+    </>
   );
 };
 
@@ -299,46 +785,27 @@ const DatabaseView = ({ t }: { t: any }) => {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
-  
-  // Edit State
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editNameVal, setEditNameVal] = useState('');
 
-  // Fetch Data
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
         let q;
-        const collectionName = activeTab === 'leagues' ? 'teams' : activeTab; // Leagues derived from teams for now
-        
+        const collectionName = activeTab === 'leagues' ? 'teams' : activeTab;
         const colRef = collection(db, collectionName);
         
         if (searchQuery.length > 2) {
-          // Case-sensitive prefix search (standard Firestore)
-          // For a real app, you'd want a separate lowercase field for search
-           q = query(
-            colRef, 
-            orderBy('name'), 
-            startAt(searchQuery), 
-            endAt(searchQuery + '\uf8ff'), 
-            limit(50)
-          );
+           q = query(colRef, orderBy('name'), startAt(searchQuery), endAt(searchQuery + '\uf8ff'), limit(50));
         } else {
-           // Default load
            q = query(colRef, orderBy('name'), limit(50));
-           if (activeTab === 'players') {
-             // Maybe order by overall for players?
-             // q = query(colRef, orderBy('overall', 'desc'), limit(50));
-             // Keeping name for consistency unless ordered index exists
-           }
         }
 
         const snapshot = await getDocs(q);
         const results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
         if (activeTab === 'leagues') {
-           // Extract unique leagues from teams
            const leaguesSet = new Set<string>();
            results.forEach((team: any) => {
              if (team.league) leaguesSet.add(team.league);
@@ -348,31 +815,20 @@ const DatabaseView = ({ t }: { t: any }) => {
         } else {
            setData(results);
         }
-
       } catch (err) {
         console.error("Error fetching DB data:", err);
       } finally {
         setLoading(false);
       }
     };
-
-    const timer = setTimeout(() => {
-       fetchData();
-    }, 500); // Debounce
-
+    const timer = setTimeout(() => { fetchData(); }, 500);
     return () => clearTimeout(timer);
   }, [activeTab, searchQuery]);
 
-  // Actions
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!window.confirm(t.deleteConfirm)) return;
-    
-    if (activeTab === 'leagues') {
-       alert("Cannot delete leagues directly. Delete the teams in the league.");
-       return;
-    }
-
+    if (activeTab === 'leagues') return;
     try {
       await deleteDoc(doc(db, activeTab, id));
       setData(prev => prev.filter(item => item.id !== id));
@@ -390,8 +846,7 @@ const DatabaseView = ({ t }: { t: any }) => {
 
   const handleUpdateSave = async (id: string, e: React.MouseEvent) => {
      e.stopPropagation();
-     if (activeTab === 'leagues') return; // Read only for now
-
+     if (activeTab === 'leagues') return;
      try {
        await updateDoc(doc(db, activeTab, id), { name: editNameVal });
        setData(prev => prev.map(item => item.id === id ? { ...item, name: editNameVal } : item));
@@ -405,8 +860,6 @@ const DatabaseView = ({ t }: { t: any }) => {
   return (
     <div className="h-full flex flex-col pt-8 pb-32 px-4 animate-fadeIn">
        <h2 className="text-3xl font-black mb-6 px-2">{t.navSquad}</h2>
-
-       {/* Tabs */}
        <div className="flex p-1 bg-black/5 dark:bg-white/5 rounded-xl mb-6 mx-2">
           {[
             { id: 'players', label: t.dbPlayers },
@@ -426,8 +879,6 @@ const DatabaseView = ({ t }: { t: any }) => {
             </button>
           ))}
        </div>
-
-       {/* Search */}
        <div className="relative mb-4 mx-2">
          <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 opacity-40" />
          <input 
@@ -438,8 +889,6 @@ const DatabaseView = ({ t }: { t: any }) => {
            className="w-full bg-white dark:bg-white/5 border border-obsidian/5 dark:border-ghost/5 rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 ring-mint/50 transition-all"
          />
        </div>
-
-       {/* List Content */}
        <div className="flex-1 overflow-y-auto custom-scrollbar px-2 space-y-2">
           {loading ? (
              <div className="flex justify-center py-12"><ArrowPathIcon className="w-8 h-8 animate-spin text-mint" /></div>
@@ -460,7 +909,7 @@ const DatabaseView = ({ t }: { t: any }) => {
                       )}
                       {activeTab !== 'players' && (
                         <div className="w-10 h-10 rounded-full bg-black/5 dark:bg-white/5 flex items-center justify-center">
-                           <ShieldIcon item={item} />
+                           <div className="text-xs font-bold opacity-50">{item.name?.substring(0, 2).toUpperCase()}</div>
                         </div>
                       )}
                       
@@ -492,7 +941,6 @@ const DatabaseView = ({ t }: { t: any }) => {
                            <PencilSquareIcon className="w-5 h-5"/>
                         </button>
                       )}
-                      
                       {activeTab !== 'leagues' && (
                         <button onClick={(e) => handleDelete(item.id, e)} className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg">
                            <TrashIcon className="w-5 h-5"/>
@@ -503,23 +951,12 @@ const DatabaseView = ({ t }: { t: any }) => {
              ))
           )}
        </div>
-
-       {/* Modals */}
        {selectedPlayer && (
-         <PlayerDetailModal 
-           player={selectedPlayer} 
-           t={t} 
-           onClose={() => setSelectedPlayer(null)} 
-         />
+         <PlayerDetailModal player={selectedPlayer} t={t} onClose={() => setSelectedPlayer(null)} />
        )}
     </div>
   );
 };
-
-const ShieldIcon = ({ item }: any) => {
-   // Placeholder icon logic
-   return <div className="text-xs font-bold opacity-50">{item.name?.substring(0, 2).toUpperCase()}</div>
-}
 
 // --- Dashboard Components ---
 
@@ -527,39 +964,42 @@ const CareerCard: React.FC<{ career: Career, t: any, onClick: () => void }> = ({
   return (
     <div 
       onClick={onClick}
-      className="group relative min-w-[280px] w-[80%] max-w-[320px] h-[420px] rounded-3xl overflow-hidden cursor-pointer shadow-xl transition-all duration-300 hover:scale-[1.02] snap-center"
+      className={`group relative min-w-[280px] w-[80%] max-w-[320px] h-[420px] rounded-3xl overflow-hidden cursor-pointer shadow-2xl transition-all duration-300 hover:scale-[1.02] snap-center flex flex-col justify-between border ${career.isActive ? 'border-mint' : 'border-white/5'}`}
     >
-      {/* Background Image */}
-      <div className="absolute inset-0">
-        <img 
-          src={career.logoUrl} 
-          alt={career.teamName} 
-          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-80"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-obsidian via-obsidian/40 to-transparent opacity-90"></div>
+      <div className="absolute inset-0 bg-gradient-to-br from-[#1c1c1e] to-[#2c2c2e]"></div>
+      <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-10 transition-opacity"></div>
+      
+      {/* Decorative Blur */}
+      <div className="absolute -top-10 -right-10 w-40 h-40 bg-mint/20 rounded-full blur-3xl opacity-50"></div>
+      <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl opacity-30"></div>
+
+      <div className="relative z-10 p-6 flex-1 flex flex-col">
+         <div className="flex justify-between items-start mb-4">
+            <div className="bg-black/20 backdrop-blur-md px-3 py-1 rounded-full border border-white/5 text-xs font-mono text-mint/80">
+              {career.season}
+            </div>
+            {career.isActive && (
+              <div className="bg-mint text-obsidian px-2 py-0.5 rounded text-xs font-bold uppercase shadow-[0_0_15px_rgba(152,255,152,0.4)]">
+                Active
+              </div>
+            )}
+         </div>
+
+         <div className="mt-auto">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-mint to-mint-hover text-obsidian flex items-center justify-center font-black text-3xl mb-4 shadow-lg shadow-mint/20">
+              {career.teamName.charAt(0)}
+            </div>
+            <h3 className="text-3xl font-black uppercase tracking-tight leading-none mb-1 text-white">
+              {career.teamName}
+            </h3>
+            <p className="text-lg text-white/60 font-medium">{career.managerName}</p>
+         </div>
       </div>
 
-      {/* Content */}
-      <div className="absolute inset-0 p-6 flex flex-col justify-end text-ghost">
-        <div className="mb-auto pt-2 flex justify-between items-start">
-           <div className="bg-obsidian/30 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 text-xs font-mono">
-             {career.season}
-           </div>
-           <div className="flex text-mint">
-             {[...Array(career.rating)].map((_, i) => (
-               <StarIconSolid key={i} className="w-4 h-4" />
-             ))}
-           </div>
-        </div>
-
-        <h3 className="text-3xl font-black uppercase tracking-tight leading-none mb-1">
-          {career.teamName}
-        </h3>
-        <p className="text-lg opacity-80 mb-4 font-medium">{career.managerName}</p>
-
-        <div className="flex items-center gap-2 text-xs opacity-60 font-mono border-t border-white/10 pt-4">
+      <div className="relative z-10 bg-black/20 backdrop-blur-md p-4 border-t border-white/5">
+        <div className="flex items-center gap-2 text-xs text-white/40 font-mono">
           <span>{t.lastPlayed}:</span>
-          <span className="text-mint">{career.lastPlayed}</span>
+          <span className="text-white/80">{new Date(career.lastPlayed).toLocaleDateString()}</span>
         </div>
       </div>
     </div>
@@ -613,9 +1053,7 @@ const BottomNav = ({ currentView, setView, t }: { currentView: AppView, setView:
   );
 };
 
-// --- Helper Functions for CSV & Image ---
-
-// Compress image to small base64 string
+// --- Helper Functions ---
 const compressImage = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -625,13 +1063,12 @@ const compressImage = (file: File): Promise<string> => {
       img.src = event.target?.result as string;
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 250; // Small thumbnail size
+        const MAX_WIDTH = 250; 
         const scaleSize = MAX_WIDTH / img.width;
         canvas.width = MAX_WIDTH;
         canvas.height = img.height * scaleSize;
         const ctx = canvas.getContext('2d');
         ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-        // Compress to JPEG 0.6 quality
         resolve(canvas.toDataURL('image/jpeg', 0.6));
       };
       img.onerror = (err) => reject(err);
@@ -640,7 +1077,6 @@ const compressImage = (file: File): Promise<string> => {
   });
 };
 
-// List of columns expected to be numbers
 const NUMBER_FIELDS = new Set([
   'overall', 'acceleration', 'sprint speed', 'positioning', 'finishing', 'shot power', 
   'long shots', 'volleys', 'penalties', 'vision', 'crossing', 'free kick accuracy', 
@@ -655,14 +1091,12 @@ const parseCSVRow = (row: string, delimiter: string) => {
   const result: string[] = [];
   let current = '';
   let inQuotes = false;
-  
   for (let i = 0; i < row.length; i++) {
     const char = row[i];
-    
     if (char === '"') {
       inQuotes = !inQuotes;
     } else if (char === delimiter && !inQuotes) {
-      result.push(current.trim().replace(/^"|"$/g, '')); // Clean quotes
+      result.push(current.trim().replace(/^"|"$/g, ''));
       current = '';
     } else {
       current += char;
@@ -672,8 +1106,7 @@ const parseCSVRow = (row: string, delimiter: string) => {
   return result;
 };
 
-// --- Profile View Component ---
-
+// --- Profile View ---
 const ProfileView = ({ t, user, goBack, userAvatar }: { t: any, user: User, goBack: () => void, userAvatar: string | null }) => {
   const [displayName, setDisplayName] = useState(user.displayName || '');
   const [isEditingName, setIsEditingName] = useState(false);
@@ -699,13 +1132,8 @@ const ProfileView = ({ t, user, goBack, userAvatar }: { t: any, user: User, goBa
       const file = e.target.files[0];
       setUploading(true);
       try {
-        // Compress client-side
         const base64Img = await compressImage(file);
-        
-        // Save to Firestore 'users' collection instead of Auth Profile
-        // This bypasses the 2048 bytes limit on photoURL
         await setDoc(doc(db, 'users', user.uid), { photoBase64: base64Img }, { merge: true });
-        
         setStatusMsg(t.photoUpdated);
       } catch (err) {
         console.error(err);
@@ -721,7 +1149,6 @@ const ProfileView = ({ t, user, goBack, userAvatar }: { t: any, user: User, goBa
     if (!window.confirm("Are you sure?")) return;
     setUploading(true);
     try {
-      // Remove from Firestore
       await setDoc(doc(db, 'users', user.uid), { photoBase64: null }, { merge: true });
       setStatusMsg(t.photoDeleted);
     } catch (err) {
@@ -733,7 +1160,6 @@ const ProfileView = ({ t, user, goBack, userAvatar }: { t: any, user: User, goBa
     }
   };
 
-  // Use avatar from Firestore (passed via props) or fallback
   const photoUrl = userAvatar || user.photoURL;
   const initials = (user.email || 'U').charAt(0).toUpperCase();
 
@@ -747,7 +1173,6 @@ const ProfileView = ({ t, user, goBack, userAvatar }: { t: any, user: User, goBa
       </div>
 
       <div className="flex flex-col items-center">
-        {/* Avatar Section */}
         <div className="relative group mb-8">
           <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-white dark:border-white/10 shadow-2xl bg-mint flex items-center justify-center">
             {photoUrl ? (
@@ -756,10 +1181,7 @@ const ProfileView = ({ t, user, goBack, userAvatar }: { t: any, user: User, goBa
               <span className="text-5xl font-bold text-obsidian">{initials}</span>
             )}
           </div>
-          
-          {/* Floating Action Buttons */}
           <div className="absolute -bottom-2 -right-2 flex gap-2">
-             {/* Edit Photo */}
              <button 
                onClick={() => fileInputRef.current?.click()}
                className="w-10 h-10 rounded-full bg-mint text-obsidian flex items-center justify-center shadow-lg hover:bg-mint-hover hover:scale-105 transition-all"
@@ -768,8 +1190,6 @@ const ProfileView = ({ t, user, goBack, userAvatar }: { t: any, user: User, goBa
                 {uploading ? <ArrowPathIcon className="w-5 h-5 animate-spin"/> : <CameraIcon className="w-5 h-5"/>}
              </button>
              <input type="file" ref={fileInputRef} hidden accept="image/*" onChange={handleFileSelect} />
-             
-             {/* Delete Photo - Only show if photo exists */}
              {photoUrl && (
                <button 
                 onClick={handleDeletePhoto}
@@ -782,14 +1202,12 @@ const ProfileView = ({ t, user, goBack, userAvatar }: { t: any, user: User, goBa
           </div>
         </div>
 
-        {/* Status Message */}
         {statusMsg && (
           <div className="mb-6 px-4 py-2 bg-mint/10 text-mint rounded-lg text-sm font-bold flex items-center gap-2 animate-fadeIn">
             <CheckCircleIcon className="w-5 h-5" /> {statusMsg}
           </div>
         )}
 
-        {/* Nickname Section */}
         <div className="w-full bg-white dark:bg-white/5 rounded-2xl p-6 shadow-sm">
            <div className="flex justify-between items-center mb-2">
              <label className="text-xs font-bold uppercase opacity-50 tracking-wider">{t.nickname}</label>
@@ -815,42 +1233,22 @@ const ProfileView = ({ t, user, goBack, userAvatar }: { t: any, user: User, goBa
              <p className="text-xl font-medium">{displayName || 'Manager'}</p>
            )}
         </div>
-
         <div className="w-full mt-6 opacity-50 text-center text-xs">
           UID: {user.uid.slice(0, 8)}...
         </div>
-
       </div>
     </div>
   );
 };
 
-// --- Settings View Component with CSV Upload Tool ---
-const SettingsView = ({ 
-  t, 
-  user, 
-  handleLogout, 
-  language, 
-  setLanguage, 
-  theme, 
-  setTheme, 
-  onProfileClick, 
-  userAvatar,
-  currency,
-  setCurrency,
-  wageFrequency,
-  setWageFrequency,
-  measurementSystem,
-  setMeasurementSystem
-}: any) => {
-  // Upload State
-  const [step, setStep] = useState(0); // 0: select, 1: preview, 2: processing
+// --- Settings View ---
+const SettingsView = ({ t, user, handleLogout, language, setLanguage, theme, setTheme, onProfileClick, userAvatar, currency, setCurrency, wageFrequency, setWageFrequency, measurementSystem, setMeasurementSystem }: any) => {
+  const [step, setStep] = useState(0); 
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
   const [csvPreview, setCsvPreview] = useState<any[]>([]);
   const [parsedRows, setParsedRows] = useState<any[]>([]);
-  const [startRowIndex, setStartRowIndex] = useState<number>(0); // New: Start Index
-  const [importTeams, setImportTeams] = useState<boolean>(true); // New: Toggle Teams
-  
+  const [startRowIndex, setStartRowIndex] = useState<number>(0);
+  const [importTeams, setImportTeams] = useState<boolean>(true);
   const [uploadStatus, setUploadStatus] = useState<string>('');
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -863,40 +1261,26 @@ const SettingsView = ({
     reader.onload = (e) => {
       const text = e.target?.result as string;
       if (!text) return;
-
       const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
-      if (lines.length < 2) {
-        setUploadStatus("File is empty or invalid.");
-        return;
-      }
-
-      // Auto-detect delimiter (Comma or Semicolon)
+      if (lines.length < 2) { setUploadStatus("File is empty or invalid."); return; }
+      
       const firstLine = lines[0];
       const commaCount = (firstLine.match(/,/g) || []).length;
       const semiCount = (firstLine.match(/;/g) || []).length;
       const delimiter = semiCount > commaCount ? ';' : ',';
 
-      // Parse Headers
       const headers = parseCSVRow(firstLine, delimiter).map(h => h.trim());
-      
-      // Parse Rows
       const dataRows = lines.slice(1).map(line => {
         const values = parseCSVRow(line, delimiter);
         const obj: any = {};
-        
         headers.forEach((h, i) => {
           if (h && h !== "") {
             let val: any = values[i] || "";
-            
-            // Clean value
             if (typeof val === 'string') val = val.trim();
-
-            // Convert to Number if it's a numeric field
             if (NUMBER_FIELDS.has(h.toLowerCase())) {
               const num = parseFloat(val);
               val = isNaN(num) ? 0 : num;
             }
-            
             obj[h.toLowerCase()] = val;
           }
         });
@@ -905,7 +1289,7 @@ const SettingsView = ({
 
       setCsvHeaders(headers);
       setParsedRows(dataRows);
-      setCsvPreview(dataRows.slice(0, 3)); // Preview first 3 rows
+      setCsvPreview(dataRows.slice(0, 3));
       setStep(1);
       setUploadStatus(`Detected ${delimiter === ';' ? 'semicolon' : 'comma'} delimiter. Loaded ${dataRows.length} rows.`);
     };
@@ -918,9 +1302,7 @@ const SettingsView = ({
     setUploadStatus("Initializing...");
 
     try {
-      // 1. Upload Teams (Optional)
       if (importTeams && startRowIndex === 0) {
-        // Extract Unique Teams
         const uniqueTeams = new Map();
         parsedRows.forEach(row => {
           const teamName = row['team'] || row['squadra'] || row['club']; 
@@ -937,51 +1319,40 @@ const SettingsView = ({
         const teamsArray = Array.from(uniqueTeams.values());
         setUploadStatus(`Found ${teamsArray.length} unique teams. Uploading teams...`);
 
-        const batchSize = 250; // Lower batch size for safety
+        const batchSize = 250; 
         let totalBatches = Math.ceil(teamsArray.length / batchSize);
         
         for (let i = 0; i < totalBatches; i++) {
           const batch = writeBatch(db);
           const chunk = teamsArray.slice(i * batchSize, (i + 1) * batchSize);
-          
           chunk.forEach(team => {
             const docId = String(team.name).replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
             const docRef = doc(db, 'teams', docId);
             batch.set(docRef, team);
           });
-
           await batch.commit();
-          // Rate Limit Sleep
           await new Promise(r => setTimeout(r, 1000));
-          setUploadProgress(Math.round(((i + 1) / totalBatches) * 20)); // First 20%
+          setUploadProgress(Math.round(((i + 1) / totalBatches) * 20));
         }
       }
 
-      // 2. Upload Players
       const playersToUpload = parsedRows.slice(startRowIndex);
       setUploadStatus(`Uploading ${playersToUpload.length} players starting from index ${startRowIndex}...`);
       
-      const batchSize = 200; // Smaller batches to avoid quota burst
+      const batchSize = 200; 
       let totalBatches = Math.ceil(playersToUpload.length / batchSize);
 
       for (let i = 0; i < totalBatches; i++) {
         const batch = writeBatch(db);
         const chunk = playersToUpload.slice(i * batchSize, (i + 1) * batchSize);
-        
         chunk.forEach(player => {
           const teamName = player['team'] || player['squadra'] || player['club'];
-          if (teamName) {
-             player.teamId = String(teamName).replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
-          }
+          if (teamName) player.teamId = String(teamName).replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
           const docRef = doc(collection(db, 'players'));
           batch.set(docRef, player);
         });
-
         await batch.commit();
-        
-        // IMPORTANT: Sleep to prevent "backend overload" / rate limiting
         await new Promise(r => setTimeout(r, 1200)); 
-
         const currentBatchProgress = ((i + 1) / totalBatches) * 80;
         setUploadProgress(20 + Math.round(currentBatchProgress));
         setUploadStatus(`Uploaded batch ${i+1}/${totalBatches} (${chunk.length} players)...`);
@@ -989,17 +1360,12 @@ const SettingsView = ({
 
       setUploadStatus('Import Complete!');
       setTimeout(() => {
-        setStep(0);
-        setParsedRows([]);
-        setUploadStatus('');
-        setUploadProgress(0);
+        setStep(0); setParsedRows([]); setUploadStatus(''); setUploadProgress(0);
         if (fileInputRef.current) fileInputRef.current.value = '';
       }, 3000);
-
     } catch (err: any) {
       console.error(err);
       setUploadStatus("Error: " + err.message);
-      // Do not reset step, let them see error
     }
   };
 
@@ -1007,35 +1373,20 @@ const SettingsView = ({
     <div className="px-6 pt-24 pb-32 max-w-md mx-auto w-full animate-fadeIn">
       <h2 className="text-3xl font-black mb-8">{t.navSettings}</h2>
       
-      {/* Profile Section */}
-      <div 
-        onClick={onProfileClick}
-        className="bg-white dark:bg-white/5 rounded-2xl p-4 mb-6 shadow-sm flex items-center gap-4 cursor-pointer hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-      >
+      <div onClick={onProfileClick} className="bg-white dark:bg-white/5 rounded-2xl p-4 mb-6 shadow-sm flex items-center gap-4 cursor-pointer hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
         <div className="w-16 h-16 rounded-full bg-mint flex items-center justify-center text-obsidian text-xl font-bold overflow-hidden">
-          {userAvatar || user.photoURL ? (
-            <img src={userAvatar || user.photoURL} alt="Avatar" className="w-full h-full object-cover" />
-          ) : (
-            user.email?.[0].toUpperCase()
-          )}
+          {userAvatar || user.photoURL ? (<img src={userAvatar || user.photoURL} alt="Avatar" className="w-full h-full object-cover" />) : (user.email?.[0].toUpperCase())}
         </div>
         <div className="flex-1 overflow-hidden">
           <h3 className="font-bold text-lg truncate">{user.displayName || user.email?.split('@')[0]}</h3>
           <p className="text-xs opacity-50 truncate">{user.email}</p>
         </div>
-        <button className="p-2 text-mint hover:bg-mint/10 rounded-full">
-           <ChevronRightIcon className="w-5 h-5" />
-        </button>
+        <button className="p-2 text-mint hover:bg-mint/10 rounded-full"><ChevronRightIcon className="w-5 h-5" /></button>
       </div>
 
-      {/* Preferences */}
       <div className="space-y-4">
-        
-        {/* Appearance Group */}
         <div className="bg-white dark:bg-white/5 rounded-2xl p-4 shadow-sm">
-          <h4 className="text-xs font-bold uppercase opacity-50 mb-4 tracking-wider flex items-center gap-2">
-            <SunIcon className="w-3 h-3"/> {t.appearance}
-          </h4>
+          <h4 className="text-xs font-bold uppercase opacity-50 mb-4 tracking-wider flex items-center gap-2"><SunIcon className="w-3 h-3"/> {t.appearance}</h4>
           <div className="flex justify-between items-center mb-4">
              <span>Theme</span>
              <div className="flex bg-obsidian/5 dark:bg-ghost/5 p-1 rounded-full">
@@ -1053,97 +1404,45 @@ const SettingsView = ({
           </div>
         </div>
 
-        {/* Career Preferences Group */}
         <div className="bg-white dark:bg-white/5 rounded-2xl p-4 shadow-sm">
-          <h4 className="text-xs font-bold uppercase opacity-50 mb-4 tracking-wider flex items-center gap-2">
-            <CurrencyDollarIcon className="w-3 h-3"/> {t.preferences}
-          </h4>
-
-          {/* Currency */}
+          <h4 className="text-xs font-bold uppercase opacity-50 mb-4 tracking-wider flex items-center gap-2"><CurrencyDollarIcon className="w-3 h-3"/> {t.preferences}</h4>
           <div className="flex justify-between items-center mb-4">
              <span className="text-sm">{t.currency}</span>
              <div className="flex bg-obsidian/5 dark:bg-ghost/5 p-1 rounded-full gap-1">
-                {Object.values(Currency).map((cur) => (
-                  <ToggleButton 
-                    key={cur}
-                    active={currency === cur} 
-                    onClick={() => setCurrency(cur)}
-                  >
-                    <span className="text-xs font-bold">{cur}</span>
-                  </ToggleButton>
-                ))}
+                {Object.values(Currency).map((cur) => (<ToggleButton key={cur} active={currency === cur} onClick={() => setCurrency(cur)}><span className="text-xs font-bold">{cur}</span></ToggleButton>))}
              </div>
           </div>
-
-          {/* Wage Frequency */}
           <div className="flex justify-between items-center mb-4">
              <span className="text-sm">{t.wageFrequency}</span>
              <div className="flex bg-obsidian/5 dark:bg-ghost/5 p-1 rounded-full gap-1">
-                <ToggleButton active={wageFrequency === WageFrequency.WEEKLY} onClick={() => setWageFrequency(WageFrequency.WEEKLY)}>
-                   <span className="text-xs font-bold px-1">{t.weekly}</span>
-                </ToggleButton>
-                <ToggleButton active={wageFrequency === WageFrequency.YEARLY} onClick={() => setWageFrequency(WageFrequency.YEARLY)}>
-                   <span className="text-xs font-bold px-1">{t.yearly}</span>
-                </ToggleButton>
+                <ToggleButton active={wageFrequency === WageFrequency.WEEKLY} onClick={() => setWageFrequency(WageFrequency.WEEKLY)}><span className="text-xs font-bold px-1">{t.weekly}</span></ToggleButton>
+                <ToggleButton active={wageFrequency === WageFrequency.YEARLY} onClick={() => setWageFrequency(WageFrequency.YEARLY)}><span className="text-xs font-bold px-1">{t.yearly}</span></ToggleButton>
              </div>
           </div>
-
-          {/* Measurement System */}
           <div className="flex flex-col gap-2">
              <span className="text-sm">{t.measurements}</span>
              <div className="flex bg-obsidian/5 dark:bg-ghost/5 p-1 rounded-full w-full">
-                <ToggleButton 
-                  className="flex-1"
-                  active={measurementSystem === MeasurementSystem.METRIC} 
-                  onClick={() => setMeasurementSystem(MeasurementSystem.METRIC)}
-                >
-                   <span className="text-xs font-bold">{t.metric}</span>
-                </ToggleButton>
-                <ToggleButton 
-                  className="flex-1"
-                  active={measurementSystem === MeasurementSystem.IMPERIAL} 
-                  onClick={() => setMeasurementSystem(MeasurementSystem.IMPERIAL)}
-                >
-                   <span className="text-xs font-bold">{t.imperial}</span>
-                </ToggleButton>
+                <ToggleButton className="flex-1" active={measurementSystem === MeasurementSystem.METRIC} onClick={() => setMeasurementSystem(MeasurementSystem.METRIC)}><span className="text-xs font-bold">{t.metric}</span></ToggleButton>
+                <ToggleButton className="flex-1" active={measurementSystem === MeasurementSystem.IMPERIAL} onClick={() => setMeasurementSystem(MeasurementSystem.IMPERIAL)}><span className="text-xs font-bold">{t.imperial}</span></ToggleButton>
              </div>
           </div>
-
         </div>
 
-
-         {/* DEVELOPER TOOLS - SMART CSV IMPORTER */}
          <div className="bg-obsidian/5 dark:bg-ghost/5 border-2 border-dashed border-mint/30 rounded-2xl p-4 shadow-sm mt-8">
-          <h4 className="text-xs font-bold uppercase text-mint mb-4 tracking-wider flex items-center gap-2">
-            <CloudArrowUpIcon className="w-4 h-4"/> Smart CSV Importer
-          </h4>
-          
-          <div className="text-sm opacity-70 mb-4">
-             Auto-maps columns and manages write quotas.
-          </div>
-
+          <h4 className="text-xs font-bold uppercase text-mint mb-4 tracking-wider flex items-center gap-2"><CloudArrowUpIcon className="w-4 h-4"/> Smart CSV Importer</h4>
+          <div className="text-sm opacity-70 mb-4">Auto-maps columns and manages write quotas.</div>
           {step === 0 && (
             <div className="relative">
-              <input 
-                type="file" 
-                ref={fileInputRef}
-                accept=".csv"
-                onChange={handleFileSelect}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-              />
+              <input type="file" ref={fileInputRef} accept=".csv" onChange={handleFileSelect} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"/>
               <div className="w-full py-4 bg-white dark:bg-obsidian border border-obsidian/10 dark:border-ghost/10 rounded-lg flex flex-col items-center justify-center gap-2 hover:border-mint transition-colors cursor-pointer">
                  <DocumentTextIcon className="w-8 h-8 opacity-50" />
                  <span className="text-sm font-medium">Select CSV File</span>
               </div>
             </div>
           )}
-
           {step === 1 && (
              <div className="space-y-4 animate-fadeIn">
-                <div className="text-xs text-mint font-mono flex items-center gap-2">
-                   <CheckCircleIcon className="w-4 h-4" /> {uploadStatus}
-                </div>
-
+                <div className="text-xs text-mint font-mono flex items-center gap-2"><CheckCircleIcon className="w-4 h-4" /> {uploadStatus}</div>
                 <div className="bg-black/10 dark:bg-white/10 p-2 rounded text-[10px] font-mono overflow-x-auto">
                   <p className="font-bold mb-1 text-mint">Preview:</p>
                   {csvPreview.length > 0 && (
@@ -1153,71 +1452,38 @@ const SettingsView = ({
                      </div>
                   )}
                 </div>
-
-                {/* Import Config Options */}
                 <div className="bg-white/5 rounded-lg p-3 space-y-3">
                    <div className="flex items-center justify-between text-sm">
                       <label className="opacity-80">Import Teams?</label>
-                      <input 
-                        type="checkbox" 
-                        checked={importTeams} 
-                        onChange={(e) => setImportTeams(e.target.checked)}
-                        className="accent-mint w-4 h-4"
-                      />
+                      <input type="checkbox" checked={importTeams} onChange={(e) => setImportTeams(e.target.checked)} className="accent-mint w-4 h-4"/>
                    </div>
                    <div className="flex items-center justify-between text-sm">
                       <label className="opacity-80">Start from Row (Index)</label>
-                      <input 
-                        type="number" 
-                        value={startRowIndex} 
-                        onChange={(e) => setStartRowIndex(Number(e.target.value))}
-                        className="bg-black/10 dark:bg-white/10 rounded px-2 py-1 w-20 text-right outline-none focus:ring-1 ring-mint"
-                      />
+                      <input type="number" value={startRowIndex} onChange={(e) => setStartRowIndex(Number(e.target.value))} className="bg-black/10 dark:bg-white/10 rounded px-2 py-1 w-20 text-right outline-none focus:ring-1 ring-mint"/>
                    </div>
-                   <p className="text-[10px] opacity-50 leading-tight">
-                     Use "Start from Row" if previous upload failed due to quota. E.g., if it failed at 50%, try starting at row 8000.
-                   </p>
+                   <p className="text-[10px] opacity-50 leading-tight">Use "Start from Row" if previous upload failed due to quota.</p>
                 </div>
-
                 <div className="flex gap-2 pt-2">
                    <Button variant="ghost" onClick={() => { setStep(0); setParsedRows([]); }} className="!py-2 text-sm">Cancel</Button>
                    <Button variant="primary" onClick={handleStartImport} className="!py-2 text-sm">Start Import</Button>
                 </div>
              </div>
           )}
-
           {step === 2 && (
             <div className="space-y-3 animate-fadeIn">
-               <div className="flex justify-between text-xs font-mono">
-                  <span className="truncate max-w-[70%]">{uploadStatus}</span>
-                  <span>{uploadProgress}%</span>
-               </div>
+               <div className="flex justify-between text-xs font-mono"><span className="truncate max-w-[70%]">{uploadStatus}</span><span>{uploadProgress}%</span></div>
                <div className="w-full h-2 bg-obsidian/10 dark:bg-ghost/10 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-mint transition-all duration-300 relative overflow-hidden"
-                    style={{ width: `${uploadProgress}%` }}
-                  >
-                     <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
-                  </div>
+                  <div className="h-full bg-mint transition-all duration-300 relative overflow-hidden" style={{ width: `${uploadProgress}%` }}><div className="absolute inset-0 bg-white/20 animate-pulse"></div></div>
                </div>
-               <div className="flex justify-center pt-2">
-                  <ArrowPathIcon className="w-5 h-5 animate-spin opacity-50" />
-               </div>
+               <div className="flex justify-center pt-2"><ArrowPathIcon className="w-5 h-5 animate-spin opacity-50" /></div>
             </div>
           )}
-
           {uploadStatus === 'Import Complete!' && (
-             <div className="mt-4 p-3 bg-mint/10 rounded-lg text-center text-mint text-sm font-bold flex items-center justify-center gap-2">
-               <CheckCircleIcon className="w-5 h-5" /> All Data Imported!
-             </div>
+             <div className="mt-4 p-3 bg-mint/10 rounded-lg text-center text-mint text-sm font-bold flex items-center justify-center gap-2"><CheckCircleIcon className="w-5 h-5" /> All Data Imported!</div>
           )}
         </div>
-
       </div>
-
-      <div className="mt-8">
-        <Button variant="secondary" onClick={handleLogout}>{t.signOut}</Button>
-      </div>
+      <div className="mt-8"><Button variant="secondary" onClick={handleLogout}>{t.signOut}</Button></div>
     </div>
   );
 };
@@ -1228,55 +1494,43 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  
-  // Settings State
   const [language, setLanguage] = useState<Language>(Language.IT);
   const [theme, setTheme] = useState<Theme>(Theme.AUTO);
   const [currentView, setCurrentView] = useState<AppView>(AppView.HOME);
-
-  // New Career Preferences State
   const [currency, setCurrency] = useState<Currency>(Currency.EUR);
   const [wageFrequency, setWageFrequency] = useState<WageFrequency>(WageFrequency.WEEKLY);
   const [measurementSystem, setMeasurementSystem] = useState<MeasurementSystem>(MeasurementSystem.METRIC);
-
-  // Form State
+  const [careers, setCareers] = useState<Career[]>([]);
+  const [showAddCareerModal, setShowAddCareerModal] = useState(false);
+  const [selectedCareer, setSelectedCareer] = useState<Career | null>(null);
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
   const t = useMemo(() => TRANSLATIONS[language], [language]);
 
-  // Handle Theme
+  // Sync selectedCareer with the updated data from careers array to reflect changes (like seasonOffset) immediately
+  const selectedCareerData = useMemo(() => {
+    if (!selectedCareer) return null;
+    return careers.find(c => c.id === selectedCareer.id) || selectedCareer;
+  }, [careers, selectedCareer]);
+
   useEffect(() => {
     const root = window.document.documentElement;
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-
     const applyTheme = (themeVal: Theme) => {
-      if (themeVal === Theme.DARK) {
-        root.classList.add('dark');
-      } else if (themeVal === Theme.LIGHT) {
-        root.classList.remove('dark');
-      } else {
-        // Auto
-        if (mediaQuery.matches) root.classList.add('dark');
-        else root.classList.remove('dark');
-      }
+      if (themeVal === Theme.DARK) root.classList.add('dark');
+      else if (themeVal === Theme.LIGHT) root.classList.remove('dark');
+      else { if (mediaQuery.matches) root.classList.add('dark'); else root.classList.remove('dark'); }
     };
-
     applyTheme(theme);
-
-    const handleSystemChange = () => {
-      if (theme === Theme.AUTO) applyTheme(Theme.AUTO);
-    };
-
+    const handleSystemChange = () => { if (theme === Theme.AUTO) applyTheme(Theme.AUTO); };
     mediaQuery.addEventListener('change', handleSystemChange);
     return () => mediaQuery.removeEventListener('change', handleSystemChange);
   }, [theme]);
 
-  // Handle Auth State
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
@@ -1285,16 +1539,29 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Listen for real-time avatar updates from Firestore to bypass Auth profile limits
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(db, 'careers'), where('userId', '==', user.uid));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const c = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Career));
+      c.sort((a, b) => {
+        if (a.isActive && !b.isActive) return -1;
+        if (!a.isActive && b.isActive) return 1;
+        return new Date(b.lastPlayed).getTime() - new Date(a.lastPlayed).getTime();
+      });
+      // Prepend Mock Career for testing
+      c.unshift(MOCK_CAREER);
+      setCareers(c);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
   useEffect(() => {
     if (user?.uid) {
       const unsubscribe = onSnapshot(doc(db, 'users', user.uid), (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data();
-          if (data.photoBase64) {
-             setUserAvatar(data.photoBase64);
-             return;
-          }
+          if (data.photoBase64) { setUserAvatar(data.photoBase64); return; }
         }
         setUserAvatar(null);
       });
@@ -1308,14 +1575,10 @@ export default function App() {
     e.preventDefault();
     setError(null);
     setIsSubmitting(true);
-
     try {
-      if (isLogin) {
-        await signInWithEmailAndPassword(auth, email, password);
-      } else {
-        if (password !== confirmPassword) {
-          throw new Error("Passwords do not match");
-        }
+      if (isLogin) { await signInWithEmailAndPassword(auth, email, password); }
+      else {
+        if (password !== confirmPassword) throw new Error("Passwords do not match");
         await createUserWithEmailAndPassword(auth, email, password);
       }
     } catch (err: any) {
@@ -1327,21 +1590,12 @@ export default function App() {
       if (err.code === 'auth/user-not-found') msg = "Utente non trovato.";
       if (err.code === 'auth/email-already-in-use') msg = "Email già in uso.";
       setError(msg);
-    } finally {
-      setIsSubmitting(false);
-    }
+    } finally { setIsSubmitting(false); }
   };
 
-  const handleLogout = async () => {
-    await signOut(auth);
-    // Reset view to home on logout for next login
-    setCurrentView(AppView.HOME);
-    setUserAvatar(null);
-  };
+  const handleLogout = async () => { await signOut(auth); setCurrentView(AppView.HOME); setUserAvatar(null); };
 
   const handleDevLogin = () => {
-    // Bypass authentication by setting a mock user object directly in state
-    // This allows developer access without hitting Firebase Auth
     const devUser = {
       uid: 'dev-access-bypass',
       email: 'developer@mcm.plus',
@@ -1353,14 +1607,7 @@ export default function App() {
       tenantId: null,
       delete: async () => {},
       getIdToken: async () => 'dev-token',
-      getIdTokenResult: async () => ({
-        token: 'dev-token',
-        signInProvider: 'dev',
-        claims: {},
-        authTime: Date.now().toString(),
-        issuedAtTime: Date.now().toString(),
-        expirationTime: (Date.now() + 3600000).toString(),
-      }),
+      getIdTokenResult: async () => ({ token: 'dev-token', signInProvider: 'dev', claims: {}, authTime: Date.now().toString(), issuedAtTime: Date.now().toString(), expirationTime: (Date.now() + 3600000).toString() }),
       reload: async () => {},
       toJSON: () => ({}),
       displayName: 'Developer',
@@ -1368,7 +1615,6 @@ export default function App() {
       photoURL: null,
       providerId: 'dev'
     } as unknown as User;
-    
     setUser(devUser);
   };
 
@@ -1380,225 +1626,78 @@ export default function App() {
     );
   }
 
-  // --- LOGGED IN DASHBOARD ---
   if (user) {
     const userName = user.displayName || (user.email ? user.email.split('@')[0] : 'Manager');
-    // const formattedName = userName.charAt(0).toUpperCase() + userName.slice(1);
-
     return (
       <div className="min-h-screen bg-ghost dark:bg-obsidian text-obsidian dark:text-ghost font-sans relative overflow-hidden transition-colors duration-300">
-        
-        {/* Top Header - Always visible on top (except maybe settings? keeping it consistent) */}
         {currentView !== AppView.PROFILE && (
           <div className="pt-8 px-6 pb-4 flex justify-between items-center z-20 relative animate-fadeIn">
-             <div>
-                <p className="text-sm opacity-60 font-medium mb-0.5">{t.welcome}</p>
-                <h1 className="text-2xl font-bold tracking-tight">{userName}</h1>
-             </div>
-             <button 
-               onClick={() => setCurrentView(AppView.PROFILE)}
-               className="w-10 h-10 rounded-full bg-mint flex items-center justify-center shadow-lg shadow-mint/20 hover:scale-105 transition-transform overflow-hidden"
-             >
-                {userAvatar || user.photoURL ? (
-                  <img src={userAvatar || user.photoURL} alt="User" className="w-full h-full object-cover" />
-                ) : (
-                  <UserCircleIcon className="w-6 h-6 text-obsidian" />
-                )}
+             <div><p className="text-sm opacity-60 font-medium mb-0.5">{t.welcome}</p><h1 className="text-2xl font-bold tracking-tight">{userName}</h1></div>
+             <button onClick={() => setCurrentView(AppView.PROFILE)} className="w-10 h-10 rounded-full bg-mint flex items-center justify-center shadow-lg shadow-mint/20 hover:scale-105 transition-transform overflow-hidden">
+                {userAvatar || user.photoURL ? (<img src={userAvatar || user.photoURL} alt="User" className="w-full h-full object-cover" />) : (<UserCircleIcon className="w-6 h-6 text-obsidian" />)}
              </button>
           </div>
         )}
-
-        {/* View Content */}
         <div className="h-full pb-32 overflow-y-auto overflow-x-hidden">
-          
           {currentView === AppView.HOME && (
             <div className="flex flex-col h-full justify-center">
-              {/* Horizontal Scroll Section */}
               <div className="w-full overflow-x-auto pb-8 pt-4 hide-scrollbar snap-x flex gap-6 px-8 items-center" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                <AddCareerCard t={t} onClick={() => console.log('Create new career')} />
-                {MOCK_CAREERS.map(career => (
-                  <CareerCard 
-                    key={career.id} 
-                    career={career} 
-                    t={t} 
-                    onClick={() => console.log(`Open career ${career.id}`)} 
-                  />
-                ))}
-                {/* Spacer for padding at end */}
+                <AddCareerCard t={t} onClick={() => setShowAddCareerModal(true)} />
+                {careers.map(career => (<CareerCard key={career.id} career={career} t={t} onClick={() => setSelectedCareer(career)} />))}
                 <div className="w-2 shrink-0"></div>
               </div>
             </div>
           )}
-
-          {currentView === AppView.SQUAD && (
-            <DatabaseView t={t} />
-          )}
-
+          {currentView === AppView.SQUAD && (<DatabaseView t={t} />)}
           {currentView === AppView.MARKET && (
-            <div className="flex items-center justify-center h-[60vh] opacity-30">
-              <div className="text-center">
-                <CurrencyDollarIcon className="w-16 h-16 mx-auto mb-4" />
-                <p>{t.navMarket} - Coming Soon</p>
-              </div>
-            </div>
+            <div className="flex items-center justify-center h-[60vh] opacity-30"><div className="text-center"><CurrencyDollarIcon className="w-16 h-16 mx-auto mb-4" /><p>{t.navMarket} - Coming Soon</p></div></div>
           )}
-
           {currentView === AppView.SETTINGS && (
-             <SettingsView 
-               t={t} 
-               user={user} 
-               handleLogout={handleLogout}
-               language={language}
-               setLanguage={setLanguage}
-               theme={theme}
-               setTheme={setTheme}
-               onProfileClick={() => setCurrentView(AppView.PROFILE)}
-               userAvatar={userAvatar}
-               currency={currency}
-               setCurrency={setCurrency}
-               wageFrequency={wageFrequency}
-               setWageFrequency={setWageFrequency}
-               measurementSystem={measurementSystem}
-               setMeasurementSystem={setMeasurementSystem}
-             />
+             <SettingsView t={t} user={user} handleLogout={handleLogout} language={language} setLanguage={setLanguage} theme={theme} setTheme={setTheme} onProfileClick={() => setCurrentView(AppView.PROFILE)} userAvatar={userAvatar} currency={currency} setCurrency={setCurrency} wageFrequency={wageFrequency} setWageFrequency={setWageFrequency} measurementSystem={measurementSystem} setMeasurementSystem={setMeasurementSystem} />
           )}
-
-          {currentView === AppView.PROFILE && (
-             <ProfileView 
-               t={t} 
-               user={user} 
-               goBack={() => setCurrentView(AppView.SETTINGS)}
-               userAvatar={userAvatar}
-             />
-          )}
-
+          {currentView === AppView.PROFILE && (<ProfileView t={t} user={user} goBack={() => setCurrentView(AppView.SETTINGS)} userAvatar={userAvatar} />)}
         </div>
-
+        {showAddCareerModal && (<AddCareerModal t={t} userId={user.uid} onClose={() => setShowAddCareerModal(false)} />)}
+        {selectedCareerData && (<CareerDetailModal career={selectedCareerData} t={t} userId={user.uid} onClose={() => setSelectedCareer(null)} />)}
         <BottomNav currentView={currentView} setView={setCurrentView} t={t} />
       </div>
     );
   }
 
-  // --- AUTH SCREEN ---
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden font-sans bg-ghost dark:bg-obsidian text-obsidian dark:text-ghost transition-colors duration-300">
-      
-      {/* Background Decor */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
         <div className="absolute -top-[20%] -right-[10%] w-[600px] h-[600px] bg-mint/10 dark:bg-mint/5 rounded-full blur-3xl opacity-50"></div>
         <div className="absolute top-[40%] -left-[10%] w-[400px] h-[400px] bg-blue-500/10 dark:bg-blue-500/5 rounded-full blur-3xl opacity-30"></div>
       </div>
-
-      {/* Unified Top Controls Bar (Visible only on login) */}
       <div className="absolute top-6 right-6 z-50">
         <div className="flex items-center gap-1 bg-white/50 dark:bg-black/30 backdrop-blur-md rounded-full p-1.5 border border-obsidian/5 dark:border-ghost/5 shadow-lg shadow-black/5">
             <div className="flex gap-1">
-              <ToggleButton active={language === Language.IT} onClick={() => setLanguage(Language.IT)}>
-                <span className="text-xs font-bold">IT</span>
-              </ToggleButton>
-              <ToggleButton active={language === Language.EN} onClick={() => setLanguage(Language.EN)}>
-                <span className="text-xs font-bold">EN</span>
-              </ToggleButton>
+              <ToggleButton active={language === Language.IT} onClick={() => setLanguage(Language.IT)}><span className="text-xs font-bold">IT</span></ToggleButton>
+              <ToggleButton active={language === Language.EN} onClick={() => setLanguage(Language.EN)}><span className="text-xs font-bold">EN</span></ToggleButton>
             </div>
             <div className="w-px h-5 bg-obsidian/10 dark:bg-ghost/10 mx-1"></div>
             <div className="flex gap-1">
-              <ToggleButton active={theme === Theme.LIGHT} onClick={() => setTheme(Theme.LIGHT)} title="Light Mode">
-                <SunIcon className="w-4 h-4" />
-              </ToggleButton>
-              <ToggleButton active={theme === Theme.AUTO} onClick={() => setTheme(Theme.AUTO)} title="Auto Mode">
-                <ComputerDesktopIcon className="w-4 h-4" />
-              </ToggleButton>
-              <ToggleButton active={theme === Theme.DARK} onClick={() => setTheme(Theme.DARK)} title="Dark Mode">
-                <MoonIcon className="w-4 h-4" />
-              </ToggleButton>
+              <ToggleButton active={theme === Theme.LIGHT} onClick={() => setTheme(Theme.LIGHT)} title="Light Mode"><SunIcon className="w-4 h-4" /></ToggleButton>
+              <ToggleButton active={theme === Theme.AUTO} onClick={() => setTheme(Theme.AUTO)} title="Auto Mode"><ComputerDesktopIcon className="w-4 h-4" /></ToggleButton>
+              <ToggleButton active={theme === Theme.DARK} onClick={() => setTheme(Theme.DARK)} title="Dark Mode"><MoonIcon className="w-4 h-4" /></ToggleButton>
             </div>
         </div>
       </div>
-
-      {/* Main Auth Content */}
       <div className="w-full max-w-md z-10">
-        <div className="text-center mb-8">
-          <h1 className="text-5xl font-black tracking-tighter mb-2 bg-gradient-to-br from-obsidian to-obsidian/60 dark:from-ghost dark:to-ghost/60 bg-clip-text text-transparent">
-            MCM<span className="text-mint">+</span>
-          </h1>
-          <p className="text-sm font-medium opacity-60 uppercase tracking-widest">{t.subtitle}</p>
-        </div>
-
+        <div className="text-center mb-8"><h1 className="text-5xl font-black tracking-tighter mb-2 bg-gradient-to-br from-obsidian to-obsidian/60 dark:from-ghost dark:to-ghost/60 bg-clip-text text-transparent">MCM<span className="text-mint">+</span></h1><p className="text-sm font-medium opacity-60 uppercase tracking-widest">{t.subtitle}</p></div>
         <div className="bg-white/80 dark:bg-black/80 backdrop-blur-xl p-8 rounded-2xl border border-white/20 dark:border-white/5 shadow-2xl transition-all duration-300">
-          <div className="mb-6 flex justify-between items-end">
-            <h2 className="text-2xl font-bold">{isLogin ? t.login : t.register}</h2>
-            <span className="text-mint text-xs font-bold uppercase tracking-wider mb-1">
-              {isLogin ? t.secureAccess : t.newCareer}
-            </span>
-          </div>
-
-          {error && (
-            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-start gap-3 text-red-600 dark:text-red-400 text-sm">
-              <ExclamationCircleIcon className="w-5 h-5 flex-shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-
+          <div className="mb-6 flex justify-between items-end"><h2 className="text-2xl font-bold">{isLogin ? t.login : t.register}</h2><span className="text-mint text-xs font-bold uppercase tracking-wider mb-1">{isLogin ? t.secureAccess : t.newCareer}</span></div>
+          {error && (<div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-start gap-3 text-red-600 dark:text-red-400 text-sm"><ExclamationCircleIcon className="w-5 h-5 flex-shrink-0" /><span>{error}</span></div>)}
           <form onSubmit={handleAuth}>
-            <InputField 
-              label={t.email} 
-              type="email" 
-              value={email} 
-              onChange={(e) => setEmail(e.target.value)} 
-              placeholder="manager@fc.com"
-              disabled={isSubmitting}
-            />
-            
-            <InputField 
-              label={t.password} 
-              type="password" 
-              value={password} 
-              onChange={(e) => setPassword(e.target.value)} 
-              placeholder="••••••••"
-              disabled={isSubmitting}
-            />
-
-            {!isLogin && (
-              <InputField 
-                label={t.confirmPassword} 
-                type="password" 
-                value={confirmPassword} 
-                onChange={(e) => setConfirmPassword(e.target.value)} 
-                placeholder="••••••••"
-                disabled={isSubmitting}
-              />
-            )}
-
-            <Button 
-              className="mt-6" 
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? t.loading : (isLogin ? t.submitLogin : t.submitRegister)}
-            </Button>
+            <InputField label={t.email} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="manager@fc.com" disabled={isSubmitting} />
+            <InputField label={t.password} type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" disabled={isSubmitting} />
+            {!isLogin && (<InputField label={t.confirmPassword} type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" disabled={isSubmitting} />)}
+            <Button className="mt-6" disabled={isSubmitting}>{isSubmitting ? t.loading : (isLogin ? t.submitLogin : t.submitRegister)}</Button>
           </form>
-
-          <div className="mt-6 text-center text-sm">
-            <span className="opacity-60">{isLogin ? t.noAccount : t.haveAccount} </span>
-            <button 
-              onClick={() => { setIsLogin(!isLogin); setError(null); }}
-              className="font-bold text-mint hover:underline"
-            >
-              {isLogin ? t.switchRegister : t.switchLogin}
-            </button>
-          </div>
+          <div className="mt-6 text-center text-sm"><span className="opacity-60">{isLogin ? t.noAccount : t.haveAccount} </span><button onClick={() => { setIsLogin(!isLogin); setError(null); }} className="font-bold text-mint hover:underline">{isLogin ? t.switchRegister : t.switchLogin}</button></div>
         </div>
-
-        {/* DEVELOPER QUICK ACCESS */}
-        <div className="mt-8 flex justify-center">
-          <button 
-            onClick={handleDevLogin}
-            className="group flex items-center gap-2 px-4 py-2 rounded-full bg-black/5 dark:bg-white/5 hover:bg-mint/10 hover:text-mint transition-all duration-300 text-xs font-mono opacity-50 hover:opacity-100"
-          >
-            <CommandLineIcon className="w-4 h-4" />
-            <span>Developer Quick Access (Beta)</span>
-          </button>
-        </div>
-
+        <div className="mt-8 flex justify-center"><button onClick={handleDevLogin} className="group flex items-center gap-2 px-4 py-2 rounded-full bg-black/5 dark:bg-white/5 hover:bg-mint/10 hover:text-mint transition-all duration-300 text-xs font-mono opacity-50 hover:opacity-100"><CommandLineIcon className="w-4 h-4" /><span>Developer Quick Access (Beta)</span></button></div>
       </div>
     </div>
   );
