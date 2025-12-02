@@ -1,12 +1,22 @@
-import React, { useState, useEffect, useMemo } from 'react';
+
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword, 
   onAuthStateChanged, 
   signOut,
+  updateProfile,
   User 
 } from 'firebase/auth';
-import { auth } from './services/firebase';
+import { 
+  writeBatch, 
+  doc, 
+  collection, 
+  setDoc, 
+  onSnapshot 
+} from 'firebase/firestore';
+// Removed Storage imports to fix infinite loading issues
+import { auth, db } from './services/firebase';
 import { Language, Theme, AppView, Career } from './types';
 import { TRANSLATIONS, MOCK_CAREERS } from './constants';
 import { 
@@ -22,7 +32,18 @@ import {
   Cog6ToothIcon,
   PlusIcon,
   UserCircleIcon,
-  ChevronRightIcon
+  ChevronRightIcon,
+  CloudArrowUpIcon,
+  CheckCircleIcon,
+  DocumentTextIcon,
+  ArrowPathIcon,
+  CommandLineIcon,
+  CameraIcon,
+  TrashIcon,
+  PencilSquareIcon,
+  XMarkIcon,
+  CheckIcon,
+  ChevronLeftIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 
@@ -87,7 +108,7 @@ const Button = ({
 }: { 
   onClick?: () => void; 
   children?: React.ReactNode; 
-  variant?: 'primary' | 'secondary' | 'ghost'; 
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger'; 
   disabled?: boolean;
   className?: string;
 }) => {
@@ -96,7 +117,8 @@ const Button = ({
   const variants = {
     primary: "bg-mint text-mint-text hover:bg-mint-hover shadow-lg shadow-mint/20",
     secondary: "bg-obsidian text-ghost dark:bg-ghost dark:text-obsidian hover:opacity-90",
-    ghost: "bg-transparent text-obsidian dark:text-ghost hover:bg-black/5 dark:hover:bg-white/5"
+    ghost: "bg-transparent text-obsidian dark:text-ghost hover:bg-black/5 dark:hover:bg-white/5",
+    danger: "bg-red-500/10 text-red-600 hover:bg-red-500/20"
   };
 
   return (
@@ -217,19 +239,398 @@ const BottomNav = ({ currentView, setView, t }: { currentView: AppView, setView:
   );
 };
 
-// --- Settings View Component ---
-const SettingsView = ({ t, user, handleLogout, language, setLanguage, theme, setTheme }: any) => {
+// --- Helper Functions for CSV & Image ---
+
+// Compress image to small base64 string
+const compressImage = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 250; // Small thumbnail size
+        const scaleSize = MAX_WIDTH / img.width;
+        canvas.width = MAX_WIDTH;
+        canvas.height = img.height * scaleSize;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+        // Compress to JPEG 0.6 quality
+        resolve(canvas.toDataURL('image/jpeg', 0.6));
+      };
+      img.onerror = (err) => reject(err);
+    };
+    reader.onerror = (err) => reject(err);
+  });
+};
+
+// List of columns expected to be numbers
+const NUMBER_FIELDS = new Set([
+  'overall', 'acceleration', 'sprint speed', 'positioning', 'finishing', 'shot power', 
+  'long shots', 'volleys', 'penalties', 'vision', 'crossing', 'free kick accuracy', 
+  'short passing', 'long passing', 'curve', 'dribbling', 'agility', 'balance', 
+  'reactions', 'ball control', 'composure', 'interceptions', 'heading accuracy', 
+  'def awareness', 'standing tackle', 'sliding tackle', 'jumping', 'stamina', 
+  'strenght', 'aggression', 'weak foot', 'skill moves', 'height', 'weight', 'age',
+  'gk diving', 'gk handling', 'gk kicking', 'gk positioning', 'gk reflexes'
+]);
+
+const parseCSVRow = (row: string, delimiter: string) => {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  
+  for (let i = 0; i < row.length; i++) {
+    const char = row[i];
+    
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === delimiter && !inQuotes) {
+      result.push(current.trim().replace(/^"|"$/g, '')); // Clean quotes
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  result.push(current.trim().replace(/^"|"$/g, ''));
+  return result;
+};
+
+// --- Profile View Component ---
+
+const ProfileView = ({ t, user, goBack, userAvatar }: { t: any, user: User, goBack: () => void, userAvatar: string | null }) => {
+  const [displayName, setDisplayName] = useState(user.displayName || '');
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [statusMsg, setStatusMsg] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleNameSave = async () => {
+    if (!displayName.trim()) return;
+    try {
+      await updateProfile(user, { displayName: displayName });
+      setIsEditingName(false);
+      setStatusMsg(t.nameUpdated);
+      setTimeout(() => setStatusMsg(''), 3000);
+    } catch (e) {
+      console.error(e);
+      setStatusMsg(t.errorGeneric);
+    }
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setUploading(true);
+      try {
+        // Compress client-side
+        const base64Img = await compressImage(file);
+        
+        // Save to Firestore 'users' collection instead of Auth Profile
+        // This bypasses the 2048 bytes limit on photoURL
+        await setDoc(doc(db, 'users', user.uid), { photoBase64: base64Img }, { merge: true });
+        
+        setStatusMsg(t.photoUpdated);
+      } catch (err) {
+        console.error(err);
+        setStatusMsg("Error updating photo.");
+      } finally {
+        setUploading(false);
+        setTimeout(() => setStatusMsg(''), 3000);
+      }
+    }
+  };
+
+  const handleDeletePhoto = async () => {
+    if (!window.confirm("Are you sure?")) return;
+    setUploading(true);
+    try {
+      // Remove from Firestore
+      await setDoc(doc(db, 'users', user.uid), { photoBase64: null }, { merge: true });
+      setStatusMsg(t.photoDeleted);
+    } catch (err) {
+       console.error(err);
+       setStatusMsg(t.errorGeneric);
+    } finally {
+      setUploading(false);
+      setTimeout(() => setStatusMsg(''), 3000);
+    }
+  };
+
+  // Use avatar from Firestore (passed via props) or fallback
+  const photoUrl = userAvatar || user.photoURL;
+  const initials = (user.email || 'U').charAt(0).toUpperCase();
+
+  return (
+    <div className="px-6 pt-12 pb-32 max-w-md mx-auto w-full animate-fadeIn h-full flex flex-col">
+      <div className="flex items-center gap-4 mb-8">
+        <button onClick={goBack} className="p-2 -ml-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-full">
+           <ChevronLeftIcon className="w-6 h-6"/>
+        </button>
+        <h2 className="text-3xl font-black">{t.profileTitle}</h2>
+      </div>
+
+      <div className="flex flex-col items-center">
+        {/* Avatar Section */}
+        <div className="relative group mb-8">
+          <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-white dark:border-white/10 shadow-2xl bg-mint flex items-center justify-center">
+            {photoUrl ? (
+              <img src={photoUrl} alt="Profile" className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-5xl font-bold text-obsidian">{initials}</span>
+            )}
+          </div>
+          
+          {/* Floating Action Buttons */}
+          <div className="absolute -bottom-2 -right-2 flex gap-2">
+             {/* Edit Photo */}
+             <button 
+               onClick={() => fileInputRef.current?.click()}
+               className="w-10 h-10 rounded-full bg-mint text-obsidian flex items-center justify-center shadow-lg hover:bg-mint-hover hover:scale-105 transition-all"
+               title={t.changePhoto}
+             >
+                {uploading ? <ArrowPathIcon className="w-5 h-5 animate-spin"/> : <CameraIcon className="w-5 h-5"/>}
+             </button>
+             <input type="file" ref={fileInputRef} hidden accept="image/*" onChange={handleFileSelect} />
+             
+             {/* Delete Photo - Only show if photo exists */}
+             {photoUrl && (
+               <button 
+                onClick={handleDeletePhoto}
+                className="w-10 h-10 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg hover:bg-red-600 hover:scale-105 transition-all"
+                title={t.deletePhoto}
+               >
+                 <TrashIcon className="w-5 h-5"/>
+               </button>
+             )}
+          </div>
+        </div>
+
+        {/* Status Message */}
+        {statusMsg && (
+          <div className="mb-6 px-4 py-2 bg-mint/10 text-mint rounded-lg text-sm font-bold flex items-center gap-2 animate-fadeIn">
+            <CheckCircleIcon className="w-5 h-5" /> {statusMsg}
+          </div>
+        )}
+
+        {/* Nickname Section */}
+        <div className="w-full bg-white dark:bg-white/5 rounded-2xl p-6 shadow-sm">
+           <div className="flex justify-between items-center mb-2">
+             <label className="text-xs font-bold uppercase opacity-50 tracking-wider">{t.nickname}</label>
+             {!isEditingName && (
+               <button onClick={() => setIsEditingName(true)} className="text-mint text-sm font-bold hover:underline">
+                 {t.edit}
+               </button>
+             )}
+           </div>
+
+           {isEditingName ? (
+             <div className="flex gap-2">
+               <input 
+                 value={displayName}
+                 onChange={(e) => setDisplayName(e.target.value)}
+                 className="flex-1 bg-black/5 dark:bg-white/10 rounded px-3 py-2 outline-none focus:ring-2 ring-mint rounded-lg"
+                 autoFocus
+               />
+               <button onClick={handleNameSave} className="p-2 bg-mint text-obsidian rounded-lg hover:opacity-90"><CheckIcon className="w-5 h-5"/></button>
+               <button onClick={() => { setIsEditingName(false); setDisplayName(user.displayName || ''); }} className="p-2 bg-red-500/10 text-red-500 rounded-lg hover:bg-red-500/20"><XMarkIcon className="w-5 h-5"/></button>
+             </div>
+           ) : (
+             <p className="text-xl font-medium">{displayName || 'Manager'}</p>
+           )}
+        </div>
+
+        <div className="w-full mt-6 opacity-50 text-center text-xs">
+          UID: {user.uid.slice(0, 8)}...
+        </div>
+
+      </div>
+    </div>
+  );
+};
+
+// --- Settings View Component with CSV Upload Tool ---
+const SettingsView = ({ t, user, handleLogout, language, setLanguage, theme, setTheme, onProfileClick, userAvatar }: any) => {
+  // Upload State
+  const [step, setStep] = useState(0); // 0: select, 1: preview, 2: processing
+  const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
+  const [csvPreview, setCsvPreview] = useState<any[]>([]);
+  const [parsedRows, setParsedRows] = useState<any[]>([]);
+  const [startRowIndex, setStartRowIndex] = useState<number>(0); // New: Start Index
+  const [importTeams, setImportTeams] = useState<boolean>(true); // New: Toggle Teams
+  
+  const [uploadStatus, setUploadStatus] = useState<string>('');
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      if (!text) return;
+
+      const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
+      if (lines.length < 2) {
+        setUploadStatus("File is empty or invalid.");
+        return;
+      }
+
+      // Auto-detect delimiter (Comma or Semicolon)
+      const firstLine = lines[0];
+      const commaCount = (firstLine.match(/,/g) || []).length;
+      const semiCount = (firstLine.match(/;/g) || []).length;
+      const delimiter = semiCount > commaCount ? ';' : ',';
+
+      // Parse Headers
+      const headers = parseCSVRow(firstLine, delimiter).map(h => h.trim());
+      
+      // Parse Rows
+      const dataRows = lines.slice(1).map(line => {
+        const values = parseCSVRow(line, delimiter);
+        const obj: any = {};
+        
+        headers.forEach((h, i) => {
+          if (h && h !== "") {
+            let val: any = values[i] || "";
+            
+            // Clean value
+            if (typeof val === 'string') val = val.trim();
+
+            // Convert to Number if it's a numeric field
+            if (NUMBER_FIELDS.has(h.toLowerCase())) {
+              const num = parseFloat(val);
+              val = isNaN(num) ? 0 : num;
+            }
+            
+            obj[h.toLowerCase()] = val;
+          }
+        });
+        return obj;
+      });
+
+      setCsvHeaders(headers);
+      setParsedRows(dataRows);
+      setCsvPreview(dataRows.slice(0, 3)); // Preview first 3 rows
+      setStep(1);
+      setUploadStatus(`Detected ${delimiter === ';' ? 'semicolon' : 'comma'} delimiter. Loaded ${dataRows.length} rows.`);
+    };
+    reader.readAsText(file);
+  };
+
+  const handleStartImport = async () => {
+    setStep(2);
+    setUploadProgress(0);
+    setUploadStatus("Initializing...");
+
+    try {
+      // 1. Upload Teams (Optional)
+      if (importTeams && startRowIndex === 0) {
+        // Extract Unique Teams
+        const uniqueTeams = new Map();
+        parsedRows.forEach(row => {
+          const teamName = row['team'] || row['squadra'] || row['club']; 
+          const leagueName = row['league'] || row['campionato'] || row['division'];
+          if (teamName && !uniqueTeams.has(teamName)) {
+             uniqueTeams.set(teamName, {
+               name: teamName,
+               league: leagueName || 'Unknown',
+               updatedAt: new Date().toISOString()
+             });
+          }
+        });
+
+        const teamsArray = Array.from(uniqueTeams.values());
+        setUploadStatus(`Found ${teamsArray.length} unique teams. Uploading teams...`);
+
+        const batchSize = 250; // Lower batch size for safety
+        let totalBatches = Math.ceil(teamsArray.length / batchSize);
+        
+        for (let i = 0; i < totalBatches; i++) {
+          const batch = writeBatch(db);
+          const chunk = teamsArray.slice(i * batchSize, (i + 1) * batchSize);
+          
+          chunk.forEach(team => {
+            const docId = String(team.name).replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+            const docRef = doc(db, 'teams', docId);
+            batch.set(docRef, team);
+          });
+
+          await batch.commit();
+          // Rate Limit Sleep
+          await new Promise(r => setTimeout(r, 1000));
+          setUploadProgress(Math.round(((i + 1) / totalBatches) * 20)); // First 20%
+        }
+      }
+
+      // 2. Upload Players
+      const playersToUpload = parsedRows.slice(startRowIndex);
+      setUploadStatus(`Uploading ${playersToUpload.length} players starting from index ${startRowIndex}...`);
+      
+      const batchSize = 200; // Smaller batches to avoid quota burst
+      let totalBatches = Math.ceil(playersToUpload.length / batchSize);
+
+      for (let i = 0; i < totalBatches; i++) {
+        const batch = writeBatch(db);
+        const chunk = playersToUpload.slice(i * batchSize, (i + 1) * batchSize);
+        
+        chunk.forEach(player => {
+          const teamName = player['team'] || player['squadra'] || player['club'];
+          if (teamName) {
+             player.teamId = String(teamName).replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+          }
+          const docRef = doc(collection(db, 'players'));
+          batch.set(docRef, player);
+        });
+
+        await batch.commit();
+        
+        // IMPORTANT: Sleep to prevent "backend overload" / rate limiting
+        await new Promise(r => setTimeout(r, 1200)); 
+
+        const currentBatchProgress = ((i + 1) / totalBatches) * 80;
+        setUploadProgress(20 + Math.round(currentBatchProgress));
+        setUploadStatus(`Uploaded batch ${i+1}/${totalBatches} (${chunk.length} players)...`);
+      }
+
+      setUploadStatus('Import Complete!');
+      setTimeout(() => {
+        setStep(0);
+        setParsedRows([]);
+        setUploadStatus('');
+        setUploadProgress(0);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }, 3000);
+
+    } catch (err: any) {
+      console.error(err);
+      setUploadStatus("Error: " + err.message);
+      // Do not reset step, let them see error
+    }
+  };
+
   return (
     <div className="px-6 pt-24 pb-32 max-w-md mx-auto w-full animate-fadeIn">
       <h2 className="text-3xl font-black mb-8">{t.navSettings}</h2>
       
       {/* Profile Section */}
-      <div className="bg-white dark:bg-white/5 rounded-2xl p-4 mb-6 shadow-sm flex items-center gap-4">
-        <div className="w-16 h-16 rounded-full bg-mint flex items-center justify-center text-obsidian text-xl font-bold">
-          {user.email?.[0].toUpperCase()}
+      <div 
+        onClick={onProfileClick}
+        className="bg-white dark:bg-white/5 rounded-2xl p-4 mb-6 shadow-sm flex items-center gap-4 cursor-pointer hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+      >
+        <div className="w-16 h-16 rounded-full bg-mint flex items-center justify-center text-obsidian text-xl font-bold overflow-hidden">
+          {userAvatar || user.photoURL ? (
+            <img src={userAvatar || user.photoURL} alt="Avatar" className="w-full h-full object-cover" />
+          ) : (
+            user.email?.[0].toUpperCase()
+          )}
         </div>
         <div className="flex-1 overflow-hidden">
-          <h3 className="font-bold text-lg truncate">{user.email?.split('@')[0]}</h3>
+          <h3 className="font-bold text-lg truncate">{user.displayName || user.email?.split('@')[0]}</h3>
           <p className="text-xs opacity-50 truncate">{user.email}</p>
         </div>
         <button className="p-2 text-mint hover:bg-mint/10 rounded-full">
@@ -261,6 +662,108 @@ const SettingsView = ({ t, user, handleLogout, language, setLanguage, theme, set
              </div>
           </div>
         </div>
+
+         {/* DEVELOPER TOOLS - SMART CSV IMPORTER */}
+         <div className="bg-obsidian/5 dark:bg-ghost/5 border-2 border-dashed border-mint/30 rounded-2xl p-4 shadow-sm mt-8">
+          <h4 className="text-xs font-bold uppercase text-mint mb-4 tracking-wider flex items-center gap-2">
+            <CloudArrowUpIcon className="w-4 h-4"/> Smart CSV Importer
+          </h4>
+          
+          <div className="text-sm opacity-70 mb-4">
+             Auto-maps columns and manages write quotas.
+          </div>
+
+          {step === 0 && (
+            <div className="relative">
+              <input 
+                type="file" 
+                ref={fileInputRef}
+                accept=".csv"
+                onChange={handleFileSelect}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              />
+              <div className="w-full py-4 bg-white dark:bg-obsidian border border-obsidian/10 dark:border-ghost/10 rounded-lg flex flex-col items-center justify-center gap-2 hover:border-mint transition-colors cursor-pointer">
+                 <DocumentTextIcon className="w-8 h-8 opacity-50" />
+                 <span className="text-sm font-medium">Select CSV File</span>
+              </div>
+            </div>
+          )}
+
+          {step === 1 && (
+             <div className="space-y-4 animate-fadeIn">
+                <div className="text-xs text-mint font-mono flex items-center gap-2">
+                   <CheckCircleIcon className="w-4 h-4" /> {uploadStatus}
+                </div>
+
+                <div className="bg-black/10 dark:bg-white/10 p-2 rounded text-[10px] font-mono overflow-x-auto">
+                  <p className="font-bold mb-1 text-mint">Preview:</p>
+                  {csvPreview.length > 0 && (
+                     <div className="grid grid-cols-2 gap-1">
+                       <div>Name: <span className="opacity-70">{csvPreview[0].name}</span></div>
+                       <div>Team: <span className="opacity-70">{csvPreview[0].team}</span></div>
+                     </div>
+                  )}
+                </div>
+
+                {/* Import Config Options */}
+                <div className="bg-white/5 rounded-lg p-3 space-y-3">
+                   <div className="flex items-center justify-between text-sm">
+                      <label className="opacity-80">Import Teams?</label>
+                      <input 
+                        type="checkbox" 
+                        checked={importTeams} 
+                        onChange={(e) => setImportTeams(e.target.checked)}
+                        className="accent-mint w-4 h-4"
+                      />
+                   </div>
+                   <div className="flex items-center justify-between text-sm">
+                      <label className="opacity-80">Start from Row (Index)</label>
+                      <input 
+                        type="number" 
+                        value={startRowIndex} 
+                        onChange={(e) => setStartRowIndex(Number(e.target.value))}
+                        className="bg-black/10 dark:bg-white/10 rounded px-2 py-1 w-20 text-right outline-none focus:ring-1 ring-mint"
+                      />
+                   </div>
+                   <p className="text-[10px] opacity-50 leading-tight">
+                     Use "Start from Row" if previous upload failed due to quota. E.g., if it failed at 50%, try starting at row 8000.
+                   </p>
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                   <Button variant="ghost" onClick={() => { setStep(0); setParsedRows([]); }} className="!py-2 text-sm">Cancel</Button>
+                   <Button variant="primary" onClick={handleStartImport} className="!py-2 text-sm">Start Import</Button>
+                </div>
+             </div>
+          )}
+
+          {step === 2 && (
+            <div className="space-y-3 animate-fadeIn">
+               <div className="flex justify-between text-xs font-mono">
+                  <span className="truncate max-w-[70%]">{uploadStatus}</span>
+                  <span>{uploadProgress}%</span>
+               </div>
+               <div className="w-full h-2 bg-obsidian/10 dark:bg-ghost/10 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-mint transition-all duration-300 relative overflow-hidden"
+                    style={{ width: `${uploadProgress}%` }}
+                  >
+                     <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
+                  </div>
+               </div>
+               <div className="flex justify-center pt-2">
+                  <ArrowPathIcon className="w-5 h-5 animate-spin opacity-50" />
+               </div>
+            </div>
+          )}
+
+          {uploadStatus === 'Import Complete!' && (
+             <div className="mt-4 p-3 bg-mint/10 rounded-lg text-center text-mint text-sm font-bold flex items-center justify-center gap-2">
+               <CheckCircleIcon className="w-5 h-5" /> All Data Imported!
+             </div>
+          )}
+        </div>
+
       </div>
 
       <div className="mt-8">
@@ -274,6 +777,7 @@ const SettingsView = ({ t, user, handleLogout, language, setLanguage, theme, set
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
+  const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   
   // Settings State
@@ -327,6 +831,25 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
+  // Listen for real-time avatar updates from Firestore to bypass Auth profile limits
+  useEffect(() => {
+    if (user?.uid) {
+      const unsubscribe = onSnapshot(doc(db, 'users', user.uid), (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data.photoBase64) {
+             setUserAvatar(data.photoBase64);
+             return;
+          }
+        }
+        setUserAvatar(null);
+      });
+      return () => unsubscribe();
+    } else {
+      setUserAvatar(null);
+    }
+  }, [user]);
+
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -359,6 +882,40 @@ export default function App() {
     await signOut(auth);
     // Reset view to home on logout for next login
     setCurrentView(AppView.HOME);
+    setUserAvatar(null);
+  };
+
+  const handleDevLogin = () => {
+    // Bypass authentication by setting a mock user object directly in state
+    // This allows developer access without hitting Firebase Auth
+    const devUser = {
+      uid: 'dev-access-bypass',
+      email: 'developer@mcm.plus',
+      emailVerified: true,
+      isAnonymous: false,
+      metadata: {},
+      providerData: [],
+      refreshToken: '',
+      tenantId: null,
+      delete: async () => {},
+      getIdToken: async () => 'dev-token',
+      getIdTokenResult: async () => ({
+        token: 'dev-token',
+        signInProvider: 'dev',
+        claims: {},
+        authTime: Date.now().toString(),
+        issuedAtTime: Date.now().toString(),
+        expirationTime: (Date.now() + 3600000).toString(),
+      }),
+      reload: async () => {},
+      toJSON: () => ({}),
+      displayName: 'Developer',
+      phoneNumber: null,
+      photoURL: null,
+      providerId: 'dev'
+    } as unknown as User;
+    
+    setUser(devUser);
   };
 
   if (loading) {
@@ -371,24 +928,28 @@ export default function App() {
 
   // --- LOGGED IN DASHBOARD ---
   if (user) {
-    const userName = user.email ? user.email.split('@')[0] : 'Manager';
-    const formattedName = userName.charAt(0).toUpperCase() + userName.slice(1);
+    const userName = user.displayName || (user.email ? user.email.split('@')[0] : 'Manager');
+    // const formattedName = userName.charAt(0).toUpperCase() + userName.slice(1);
 
     return (
       <div className="min-h-screen bg-ghost dark:bg-obsidian text-obsidian dark:text-ghost font-sans relative overflow-hidden transition-colors duration-300">
         
         {/* Top Header - Always visible on top (except maybe settings? keeping it consistent) */}
-        {currentView !== AppView.SETTINGS && (
-          <div className="pt-8 px-6 pb-4 flex justify-between items-center z-20 relative">
+        {currentView !== AppView.PROFILE && (
+          <div className="pt-8 px-6 pb-4 flex justify-between items-center z-20 relative animate-fadeIn">
              <div>
                 <p className="text-sm opacity-60 font-medium mb-0.5">{t.welcome}</p>
-                <h1 className="text-2xl font-bold tracking-tight">{formattedName}</h1>
+                <h1 className="text-2xl font-bold tracking-tight">{userName}</h1>
              </div>
              <button 
                onClick={() => setCurrentView(AppView.PROFILE)}
-               className="w-10 h-10 rounded-full bg-mint flex items-center justify-center shadow-lg shadow-mint/20 hover:scale-105 transition-transform"
+               className="w-10 h-10 rounded-full bg-mint flex items-center justify-center shadow-lg shadow-mint/20 hover:scale-105 transition-transform overflow-hidden"
              >
-                <UserCircleIcon className="w-6 h-6 text-obsidian" />
+                {userAvatar || user.photoURL ? (
+                  <img src={userAvatar || user.photoURL} alt="User" className="w-full h-full object-cover" />
+                ) : (
+                  <UserCircleIcon className="w-6 h-6 text-obsidian" />
+                )}
              </button>
           </div>
         )}
@@ -433,7 +994,7 @@ export default function App() {
             </div>
           )}
 
-          {(currentView === AppView.SETTINGS || currentView === AppView.PROFILE) && (
+          {currentView === AppView.SETTINGS && (
              <SettingsView 
                t={t} 
                user={user} 
@@ -442,6 +1003,17 @@ export default function App() {
                setLanguage={setLanguage}
                theme={theme}
                setTheme={setTheme}
+               onProfileClick={() => setCurrentView(AppView.PROFILE)}
+               userAvatar={userAvatar}
+             />
+          )}
+
+          {currentView === AppView.PROFILE && (
+             <ProfileView 
+               t={t} 
+               user={user} 
+               goBack={() => setCurrentView(AppView.SETTINGS)}
+               userAvatar={userAvatar}
              />
           )}
 
@@ -452,7 +1024,7 @@ export default function App() {
     );
   }
 
-  // --- AUTH SCREEN (From previous iteration) ---
+  // --- AUTH SCREEN ---
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden font-sans bg-ghost dark:bg-obsidian text-obsidian dark:text-ghost transition-colors duration-300">
       
@@ -542,35 +1114,36 @@ export default function App() {
               />
             )}
 
-            <div className="mt-8">
-              <Button disabled={isSubmitting}>
-                {isSubmitting ? t.loading : (isLogin ? t.submitLogin : t.submitRegister)}
-              </Button>
-            </div>
+            <Button 
+              className="mt-6" 
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? t.loading : (isLogin ? t.submitLogin : t.submitRegister)}
+            </Button>
           </form>
 
-          <div className="mt-6 pt-6 border-t border-obsidian/10 dark:border-ghost/10 text-center text-sm">
-            <span className="opacity-60 mr-2">
-              {isLogin ? t.noAccount : t.haveAccount}
-            </span>
+          <div className="mt-6 text-center text-sm">
+            <span className="opacity-60">{isLogin ? t.noAccount : t.haveAccount} </span>
             <button 
-              onClick={() => {
-                setIsLogin(!isLogin);
-                setError(null);
-                setEmail('');
-                setPassword('');
-                setConfirmPassword('');
-              }}
-              className="font-bold text-mint-hover dark:text-mint hover:underline"
+              onClick={() => { setIsLogin(!isLogin); setError(null); }}
+              className="font-bold text-mint hover:underline"
             >
               {isLogin ? t.switchRegister : t.switchLogin}
             </button>
           </div>
         </div>
-      </div>
-      
-      <div className="absolute bottom-4 text-xs opacity-30 text-center w-full">
-        MCM+ v1.0.0 &copy; {new Date().getFullYear()}
+
+        {/* DEVELOPER QUICK ACCESS */}
+        <div className="mt-8 flex justify-center">
+          <button 
+            onClick={handleDevLogin}
+            className="group flex items-center gap-2 px-4 py-2 rounded-full bg-black/5 dark:bg-white/5 hover:bg-mint/10 hover:text-mint transition-all duration-300 text-xs font-mono opacity-50 hover:opacity-100"
+          >
+            <CommandLineIcon className="w-4 h-4" />
+            <span>Developer Quick Access (Beta)</span>
+          </button>
+        </div>
+
       </div>
     </div>
   );

@@ -75,4 +75,17 @@ export interface Translation {
   editProfile: string;
   appearance: string;
   language: string;
+
+  // Profile
+  profileTitle: string;
+  changePhoto: string;
+  deletePhoto: string;
+  nickname: string;
+  save: string;
+  cancel: string;
+  edit: string;
+  photoUpdated: string;
+  photoDeleted: string;
+  nameUpdated: string;
+  clickToUpload: string;
 }

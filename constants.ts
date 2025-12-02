@@ -41,7 +41,20 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     // Generic
     editProfile: "Edit Profile",
     appearance: "Appearance",
-    language: "Language"
+    language: "Language",
+
+    // Profile
+    profileTitle: "User Profile",
+    changePhoto: "Change Photo",
+    deletePhoto: "Remove Photo",
+    nickname: "Nickname",
+    save: "Save",
+    cancel: "Cancel",
+    edit: "Edit",
+    photoUpdated: "Photo updated successfully",
+    photoDeleted: "Photo removed",
+    nameUpdated: "Nickname updated",
+    clickToUpload: "Tap to upload"
   },
   [Language.IT]: {
     welcome: "Benvenuto su MCM+",
@@ -83,7 +96,20 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     // Generic
     editProfile: "Modifica Profilo",
     appearance: "Aspetto",
-    language: "Lingua"
+    language: "Lingua",
+
+    // Profile
+    profileTitle: "Profilo Utente",
+    changePhoto: "Cambia Foto",
+    deletePhoto: "Rimuovi Foto",
+    nickname: "Nickname",
+    save: "Salva",
+    cancel: "Annulla",
+    edit: "Modifica",
+    photoUpdated: "Foto aggiornata con successo",
+    photoDeleted: "Foto rimossa",
+    nameUpdated: "Nickname aggiornato",
+    clickToUpload: "Tocca per caricare"
   }
 };
 
