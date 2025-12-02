@@ -1,3 +1,4 @@
+
 export enum Language {
   EN = 'en',
   IT = 'it'
@@ -16,6 +17,22 @@ export enum AppView {
   SETTINGS = 'settings',
   PROFILE = 'profile',
   CAREER_DETAIL = 'career_detail'
+}
+
+export enum Currency {
+  EUR = 'EUR',
+  USD = 'USD',
+  GBP = 'GBP'
+}
+
+export enum WageFrequency {
+  WEEKLY = 'weekly',
+  YEARLY = 'yearly'
+}
+
+export enum MeasurementSystem {
+  METRIC = 'metric',   // cm, kg
+  IMPERIAL = 'imperial' // ft, lbs
 }
 
 export interface UserData {
@@ -75,6 +92,16 @@ export interface Translation {
   editProfile: string;
   appearance: string;
   language: string;
+  preferences: string;
+
+  // Settings specific
+  currency: string;
+  wageFrequency: string;
+  weekly: string;
+  yearly: string;
+  measurements: string;
+  metric: string;
+  imperial: string;
 
   // Profile
   profileTitle: string;

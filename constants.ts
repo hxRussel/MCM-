@@ -1,3 +1,4 @@
+
 import { Language, Translation, Career } from './types';
 
 export const TRANSLATIONS: Record<Language, Translation> = {
@@ -42,6 +43,16 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     editProfile: "Edit Profile",
     appearance: "Appearance",
     language: "Language",
+    preferences: "Career Preferences",
+
+    // Settings specific
+    currency: "Currency",
+    wageFrequency: "Wage Frequency",
+    weekly: "Weekly",
+    yearly: "Yearly",
+    measurements: "Measurements",
+    metric: "Metric (cm/kg)",
+    imperial: "Imperial (ft/lbs)",
 
     // Profile
     profileTitle: "User Profile",
@@ -97,6 +108,16 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     editProfile: "Modifica Profilo",
     appearance: "Aspetto",
     language: "Lingua",
+    preferences: "Preferenze Carriera",
+
+    // Settings specific
+    currency: "Valuta",
+    wageFrequency: "Frequenza Ingaggi",
+    weekly: "Settimanale",
+    yearly: "Annuale",
+    measurements: "Unità di Misura",
+    metric: "Metrico (cm/kg)",
+    imperial: "Imperiale (ft/lbs)",
 
     // Profile
     profileTitle: "Profilo Utente",

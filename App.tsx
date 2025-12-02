@@ -17,7 +17,7 @@ import {
 } from 'firebase/firestore';
 // Removed Storage imports to fix infinite loading issues
 import { auth, db } from './services/firebase';
-import { Language, Theme, AppView, Career } from './types';
+import { Language, Theme, AppView, Career, Currency, WageFrequency, MeasurementSystem } from './types';
 import { TRANSLATIONS, MOCK_CAREERS } from './constants';
 import { 
   SunIcon, 
@@ -43,7 +43,10 @@ import {
   PencilSquareIcon,
   XMarkIcon,
   CheckIcon,
-  ChevronLeftIcon
+  ChevronLeftIcon,
+  ScaleIcon,
+  BanknotesIcon,
+  CalendarDaysIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 
@@ -132,15 +135,16 @@ const Button = ({
   );
 };
 
-const ToggleButton = ({ active, onClick, children, title }: any) => (
+const ToggleButton = ({ active, onClick, children, title, className = '' }: any) => (
   <button
     onClick={onClick}
     title={title}
     className={`
-      flex items-center justify-center w-8 h-8 rounded-full transition-all duration-200
+      flex items-center justify-center rounded-full transition-all duration-200 px-3 py-1.5
       ${active 
-        ? 'bg-obsidian text-ghost dark:bg-ghost dark:text-obsidian shadow-sm scale-105' 
+        ? 'bg-obsidian text-ghost dark:bg-ghost dark:text-obsidian shadow-sm font-medium' 
         : 'text-obsidian dark:text-ghost opacity-50 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5'}
+      ${className}
     `}
   >
     {children}
@@ -452,7 +456,23 @@ const ProfileView = ({ t, user, goBack, userAvatar }: { t: any, user: User, goBa
 };
 
 // --- Settings View Component with CSV Upload Tool ---
-const SettingsView = ({ t, user, handleLogout, language, setLanguage, theme, setTheme, onProfileClick, userAvatar }: any) => {
+const SettingsView = ({ 
+  t, 
+  user, 
+  handleLogout, 
+  language, 
+  setLanguage, 
+  theme, 
+  setTheme, 
+  onProfileClick, 
+  userAvatar,
+  currency,
+  setCurrency,
+  wageFrequency,
+  setWageFrequency,
+  measurementSystem,
+  setMeasurementSystem
+}: any) => {
   // Upload State
   const [step, setStep] = useState(0); // 0: select, 1: preview, 2: processing
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
@@ -640,9 +660,13 @@ const SettingsView = ({ t, user, handleLogout, language, setLanguage, theme, set
 
       {/* Preferences */}
       <div className="space-y-4">
+        
+        {/* Appearance Group */}
         <div className="bg-white dark:bg-white/5 rounded-2xl p-4 shadow-sm">
-          <h4 className="text-xs font-bold uppercase opacity-50 mb-4 tracking-wider">{t.appearance}</h4>
-          <div className="flex justify-between items-center">
+          <h4 className="text-xs font-bold uppercase opacity-50 mb-4 tracking-wider flex items-center gap-2">
+            <SunIcon className="w-3 h-3"/> {t.appearance}
+          </h4>
+          <div className="flex justify-between items-center mb-4">
              <span>Theme</span>
              <div className="flex bg-obsidian/5 dark:bg-ghost/5 p-1 rounded-full">
                 <ToggleButton active={theme === Theme.LIGHT} onClick={() => setTheme(Theme.LIGHT)}><SunIcon className="w-4 h-4"/></ToggleButton>
@@ -650,18 +674,73 @@ const SettingsView = ({ t, user, handleLogout, language, setLanguage, theme, set
                 <ToggleButton active={theme === Theme.DARK} onClick={() => setTheme(Theme.DARK)}><MoonIcon className="w-4 h-4"/></ToggleButton>
              </div>
           </div>
-        </div>
-
-        <div className="bg-white dark:bg-white/5 rounded-2xl p-4 shadow-sm">
-          <h4 className="text-xs font-bold uppercase opacity-50 mb-4 tracking-wider">{t.language}</h4>
           <div className="flex justify-between items-center">
-             <span>Language</span>
+             <span>{t.language}</span>
              <div className="flex bg-obsidian/5 dark:bg-ghost/5 p-1 rounded-full gap-1">
                 <ToggleButton active={language === Language.IT} onClick={() => setLanguage(Language.IT)}><span className="text-xs font-bold">IT</span></ToggleButton>
                 <ToggleButton active={language === Language.EN} onClick={() => setLanguage(Language.EN)}><span className="text-xs font-bold">EN</span></ToggleButton>
              </div>
           </div>
         </div>
+
+        {/* Career Preferences Group */}
+        <div className="bg-white dark:bg-white/5 rounded-2xl p-4 shadow-sm">
+          <h4 className="text-xs font-bold uppercase opacity-50 mb-4 tracking-wider flex items-center gap-2">
+            <CurrencyDollarIcon className="w-3 h-3"/> {t.preferences}
+          </h4>
+
+          {/* Currency */}
+          <div className="flex justify-between items-center mb-4">
+             <span className="text-sm">{t.currency}</span>
+             <div className="flex bg-obsidian/5 dark:bg-ghost/5 p-1 rounded-full gap-1">
+                {Object.values(Currency).map((cur) => (
+                  <ToggleButton 
+                    key={cur}
+                    active={currency === cur} 
+                    onClick={() => setCurrency(cur)}
+                  >
+                    <span className="text-xs font-bold">{cur}</span>
+                  </ToggleButton>
+                ))}
+             </div>
+          </div>
+
+          {/* Wage Frequency */}
+          <div className="flex justify-between items-center mb-4">
+             <span className="text-sm">{t.wageFrequency}</span>
+             <div className="flex bg-obsidian/5 dark:bg-ghost/5 p-1 rounded-full gap-1">
+                <ToggleButton active={wageFrequency === WageFrequency.WEEKLY} onClick={() => setWageFrequency(WageFrequency.WEEKLY)}>
+                   <span className="text-xs font-bold px-1">{t.weekly}</span>
+                </ToggleButton>
+                <ToggleButton active={wageFrequency === WageFrequency.YEARLY} onClick={() => setWageFrequency(WageFrequency.YEARLY)}>
+                   <span className="text-xs font-bold px-1">{t.yearly}</span>
+                </ToggleButton>
+             </div>
+          </div>
+
+          {/* Measurement System */}
+          <div className="flex flex-col gap-2">
+             <span className="text-sm">{t.measurements}</span>
+             <div className="flex bg-obsidian/5 dark:bg-ghost/5 p-1 rounded-full w-full">
+                <ToggleButton 
+                  className="flex-1"
+                  active={measurementSystem === MeasurementSystem.METRIC} 
+                  onClick={() => setMeasurementSystem(MeasurementSystem.METRIC)}
+                >
+                   <span className="text-xs font-bold">{t.metric}</span>
+                </ToggleButton>
+                <ToggleButton 
+                  className="flex-1"
+                  active={measurementSystem === MeasurementSystem.IMPERIAL} 
+                  onClick={() => setMeasurementSystem(MeasurementSystem.IMPERIAL)}
+                >
+                   <span className="text-xs font-bold">{t.imperial}</span>
+                </ToggleButton>
+             </div>
+          </div>
+
+        </div>
+
 
          {/* DEVELOPER TOOLS - SMART CSV IMPORTER */}
          <div className="bg-obsidian/5 dark:bg-ghost/5 border-2 border-dashed border-mint/30 rounded-2xl p-4 shadow-sm mt-8">
@@ -784,6 +863,11 @@ export default function App() {
   const [language, setLanguage] = useState<Language>(Language.IT);
   const [theme, setTheme] = useState<Theme>(Theme.AUTO);
   const [currentView, setCurrentView] = useState<AppView>(AppView.HOME);
+
+  // New Career Preferences State
+  const [currency, setCurrency] = useState<Currency>(Currency.EUR);
+  const [wageFrequency, setWageFrequency] = useState<WageFrequency>(WageFrequency.WEEKLY);
+  const [measurementSystem, setMeasurementSystem] = useState<MeasurementSystem>(MeasurementSystem.METRIC);
 
   // Form State
   const [isLogin, setIsLogin] = useState(true);
@@ -1005,6 +1089,12 @@ export default function App() {
                setTheme={setTheme}
                onProfileClick={() => setCurrentView(AppView.PROFILE)}
                userAvatar={userAvatar}
+               currency={currency}
+               setCurrency={setCurrency}
+               wageFrequency={wageFrequency}
+               setWageFrequency={setWageFrequency}
+               measurementSystem={measurementSystem}
+               setMeasurementSystem={setMeasurementSystem}
              />
           )}
 
