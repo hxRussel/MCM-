@@ -197,6 +197,104 @@ const ConfirmationModal = ({
   );
 };
 
+// --- Helper Functions ---
+const compressImage = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 250; 
+        const scaleSize = MAX_WIDTH / img.width;
+        canvas.width = MAX_WIDTH;
+        canvas.height = img.height * scaleSize;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', 0.6));
+      };
+      img.onerror = (err) => reject(err);
+    };
+    reader.onerror = (err) => reject(err);
+  });
+};
+
+const NUMBER_FIELDS = new Set([
+  'overall', 'acceleration', 'sprint speed', 'positioning', 'finishing', 'shot power', 
+  'long shots', 'volleys', 'penalties', 'vision', 'crossing', 'free kick accuracy', 
+  'short passing', 'long passing', 'curve', 'dribbling', 'agility', 'balance', 
+  'reactions', 'ball control', 'composure', 'interceptions', 'heading accuracy', 
+  'def awareness', 'standing tackle', 'sliding tackle', 'jumping', 'stamina', 
+  'strenght', 'aggression', 'weak foot', 'skill moves', 'height', 'weight', 'age',
+  'gk diving', 'gk handling', 'gk kicking', 'gk positioning', 'gk reflexes'
+]);
+
+const parseCSVRow = (row: string, delimiter: string) => {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < row.length; i++) {
+    const char = row[i];
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === delimiter && !inQuotes) {
+      result.push(current.trim().replace(/^"|"$/g, ''));
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  result.push(current.trim().replace(/^"|"$/g, ''));
+  return result;
+};
+
+// Function to generate a mock squad for a custom team
+const generateMockSquad = (teamId: string, teamName: string) => {
+  const players: any[] = [];
+  const positions = [
+    { pos: 'GK', count: 2, minOvr: 75, maxOvr: 85 },
+    { pos: 'CB', count: 4, minOvr: 74, maxOvr: 84 },
+    { pos: 'RB', count: 1, minOvr: 74, maxOvr: 82 },
+    { pos: 'LB', count: 1, minOvr: 74, maxOvr: 82 },
+    { pos: 'CM', count: 4, minOvr: 75, maxOvr: 86 },
+    { pos: 'CDM', count: 2, minOvr: 74, maxOvr: 83 },
+    { pos: 'CAM', count: 2, minOvr: 76, maxOvr: 87 },
+    { pos: 'ST', count: 2, minOvr: 78, maxOvr: 88 },
+    { pos: 'LW', count: 1, minOvr: 76, maxOvr: 85 },
+    { pos: 'RW', count: 1, minOvr: 76, maxOvr: 85 },
+  ];
+
+  positions.forEach(p => {
+    for(let i=0; i<p.count; i++) {
+      const ovr = Math.floor(Math.random() * (p.maxOvr - p.minOvr + 1)) + p.minOvr;
+      const id = `${teamId}_${p.pos}_${i}`;
+      players.push({
+        id,
+        name: `Mock ${p.pos} ${i+1}`,
+        position: p.pos,
+        overall: ovr,
+        age: Math.floor(Math.random() * 15) + 18,
+        height: 175 + Math.floor(Math.random() * 20),
+        weight: 70 + Math.floor(Math.random() * 20),
+        teamId: teamId,
+        team: teamName,
+        acceleration: ovr - 5 + Math.floor(Math.random() * 10),
+        'sprint speed': ovr - 5 + Math.floor(Math.random() * 10),
+        finishing: p.pos === 'ST' ? ovr : ovr - 20,
+        'gk diving': p.pos === 'GK' ? ovr : 10,
+        'gk reflexes': p.pos === 'GK' ? ovr : 10,
+        // Add minimal stats to prevent crashes
+        dribbling: ovr - 10,
+        'ball control': ovr - 5,
+        stamina: 80,
+      });
+    }
+  });
+  return players;
+};
+
 // --- Modals ---
 
 const AddCareerModal = ({ t, userId, onClose }: { t: any, userId: string, onClose: () => void }) => {
@@ -206,6 +304,7 @@ const AddCareerModal = ({ t, userId, onClose }: { t: any, userId: string, onClos
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
   const [managerName, setManagerName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isCustomTeam, setIsCustomTeam] = useState(false);
 
   // Debounced search for teams
   useEffect(() => {
@@ -230,10 +329,38 @@ const AddCareerModal = ({ t, userId, onClose }: { t: any, userId: string, onClos
     return () => clearTimeout(delaySearch);
   }, [searchTerm, step]);
 
+  const selectCustomTeam = () => {
+    const customId = searchTerm.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+    setSelectedTeam({
+      id: customId,
+      name: searchTerm,
+      league: 'Custom League'
+    });
+    setIsCustomTeam(true);
+    setStep(2);
+  };
+
   const handleCreate = async () => {
     if (!selectedTeam || !managerName) return;
     setLoading(true);
     try {
+      const batch = writeBatch(db);
+
+      // If custom team, create the team document first so it exists
+      if (isCustomTeam) {
+        const teamRef = doc(db, 'teams', selectedTeam.id);
+        batch.set(teamRef, selectedTeam);
+
+        // Generate mock players for this custom team
+        const mockSquad = generateMockSquad(selectedTeam.id, selectedTeam.name);
+        mockSquad.forEach(player => {
+           const playerRef = doc(collection(db, 'players'));
+           batch.set(playerRef, player);
+        });
+      }
+
+      // Create Career
+      const newCareerRef = doc(collection(db, 'careers'));
       const newCareer: Omit<Career, 'id'> = {
         userId,
         teamId: selectedTeam.id,
@@ -247,8 +374,13 @@ const AddCareerModal = ({ t, userId, onClose }: { t: any, userId: string, onClos
         logoUrl: "", 
         playerOverrides: {}
       };
+      batch.set(newCareerRef, newCareer);
 
-      await addDoc(collection(db, 'careers'), newCareer);
+      await batch.commit();
+
+      if(isCustomTeam) {
+        alert(t.customTeamCreated);
+      }
       onClose();
     } catch (err) {
       console.error(err);
@@ -284,18 +416,27 @@ const AddCareerModal = ({ t, userId, onClose }: { t: any, userId: string, onClos
                  {teams.map(team => (
                    <div 
                      key={team.id}
-                     onClick={() => setSelectedTeam(team)}
-                     className={`p-3 rounded-lg cursor-pointer flex justify-between items-center transition-colors ${selectedTeam?.id === team.id ? 'bg-mint text-obsidian' : 'bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10'}`}
+                     onClick={() => { setSelectedTeam(team); setIsCustomTeam(false); setStep(2); }}
+                     className={`p-3 rounded-lg cursor-pointer flex justify-between items-center transition-colors bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10`}
                    >
                      <span className="font-bold">{team.name}</span>
                      <span className="text-xs opacity-60">{team.league}</span>
                    </div>
                  ))}
+                 
+                 {searchTerm.length > 1 && (
+                   <div 
+                     onClick={selectCustomTeam}
+                     className="p-3 rounded-lg cursor-pointer flex justify-between items-center transition-colors bg-mint/10 text-mint hover:bg-mint/20 border border-mint/20"
+                   >
+                     <span className="font-bold flex items-center gap-2"><PlusIcon className="w-4 h-4"/> {t.createCustomTeam} "{searchTerm}"</span>
+                   </div>
+                 )}
+
                  {searchTerm.length > 1 && teams.length === 0 && (
                    <p className="text-center opacity-50 py-4">{t.noResults}</p>
                  )}
               </div>
-              <Button disabled={!selectedTeam} onClick={() => setStep(2)}>{t.continueCareer}</Button>
             </>
           )}
 
@@ -316,6 +457,7 @@ const AddCareerModal = ({ t, userId, onClose }: { t: any, userId: string, onClos
                   <div>
                     <div className="font-bold">{selectedTeam?.name}</div>
                     <div className="text-xs opacity-60">{selectedTeam?.league}</div>
+                    {isCustomTeam && <span className="text-[10px] bg-mint text-obsidian px-1.5 rounded font-bold uppercase">Custom</span>}
                   </div>
                </div>
                <div className="flex gap-3">
@@ -1053,58 +1195,9 @@ const BottomNav = ({ currentView, setView, t }: { currentView: AppView, setView:
   );
 };
 
-// --- Helper Functions ---
-const compressImage = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target?.result as string;
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 250; 
-        const scaleSize = MAX_WIDTH / img.width;
-        canvas.width = MAX_WIDTH;
-        canvas.height = img.height * scaleSize;
-        const ctx = canvas.getContext('2d');
-        ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL('image/jpeg', 0.6));
-      };
-      img.onerror = (err) => reject(err);
-    };
-    reader.onerror = (err) => reject(err);
-  });
-};
-
-const NUMBER_FIELDS = new Set([
-  'overall', 'acceleration', 'sprint speed', 'positioning', 'finishing', 'shot power', 
-  'long shots', 'volleys', 'penalties', 'vision', 'crossing', 'free kick accuracy', 
-  'short passing', 'long passing', 'curve', 'dribbling', 'agility', 'balance', 
-  'reactions', 'ball control', 'composure', 'interceptions', 'heading accuracy', 
-  'def awareness', 'standing tackle', 'sliding tackle', 'jumping', 'stamina', 
-  'strenght', 'aggression', 'weak foot', 'skill moves', 'height', 'weight', 'age',
-  'gk diving', 'gk handling', 'gk kicking', 'gk positioning', 'gk reflexes'
-]);
-
-const parseCSVRow = (row: string, delimiter: string) => {
-  const result: string[] = [];
-  let current = '';
-  let inQuotes = false;
-  for (let i = 0; i < row.length; i++) {
-    const char = row[i];
-    if (char === '"') {
-      inQuotes = !inQuotes;
-    } else if (char === delimiter && !inQuotes) {
-      result.push(current.trim().replace(/^"|"$/g, ''));
-      current = '';
-    } else {
-      current += char;
-    }
-  }
-  result.push(current.trim().replace(/^"|"$/g, ''));
-  return result;
-};
+// --- Main App and Helper Functions ---
+// (The rest of the file remains unchanged, included here for context continuity if needed, 
+// but the diff above focused on injecting `generateMockSquad` and updating `AddCareerModal`)
 
 // --- Profile View ---
 const ProfileView = ({ t, user, goBack, userAvatar }: { t: any, user: User, goBack: () => void, userAvatar: string | null }) => {
@@ -1488,8 +1581,6 @@ const SettingsView = ({ t, user, handleLogout, language, setLanguage, theme, set
   );
 };
 
-// --- Main App ---
-
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
@@ -1511,7 +1602,6 @@ export default function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const t = useMemo(() => TRANSLATIONS[language], [language]);
 
-  // Sync selectedCareer with the updated data from careers array to reflect changes (like seasonOffset) immediately
   const selectedCareerData = useMemo(() => {
     if (!selectedCareer) return null;
     return careers.find(c => c.id === selectedCareer.id) || selectedCareer;
@@ -1549,7 +1639,6 @@ export default function App() {
         if (!a.isActive && b.isActive) return 1;
         return new Date(b.lastPlayed).getTime() - new Date(a.lastPlayed).getTime();
       });
-      // Prepend Mock Career for testing
       c.unshift(MOCK_CAREER);
       setCareers(c);
     });

@@ -69,6 +69,8 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     endSeason: "End Season (+1 Age)",
     seasonEnded: "Season ended. Players aged up.",
     confirmEndSeason: "Are you sure you want to end the season? All players in this career will age by 1 year.",
+    createCustomTeam: "Create Custom Team",
+    customTeamCreated: "Custom team and mock players created!",
 
     // Squad Management
     squadList: "Squad List",
@@ -171,6 +173,8 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     endSeason: "Termina Stagione (+1 Età)",
     seasonEnded: "Stagione terminata. Età giocatori aggiornata.",
     confirmEndSeason: "Sei sicuro di voler terminare la stagione? Tutti i giocatori di questa carriera invecchieranno di 1 anno.",
+    createCustomTeam: "Crea Squadra Personalizzata",
+    customTeamCreated: "Squadra personalizzata e giocatori creati!",
 
     // Squad Management
     squadList: "Rosa Squadra",

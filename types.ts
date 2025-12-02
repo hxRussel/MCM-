@@ -130,6 +130,8 @@ export interface Translation {
   endSeason: string;
   seasonEnded: string;
   confirmEndSeason: string;
+  createCustomTeam: string;
+  customTeamCreated: string;
   
   // Squad Management
   squadList: string;
