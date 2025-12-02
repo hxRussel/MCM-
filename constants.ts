@@ -1,4 +1,4 @@
-import { Language, Translation } from './types';
+import { Language, Translation, Career } from './types';
 
 export const TRANSLATIONS: Record<Language, Translation> = {
   [Language.EN]: {
@@ -22,7 +22,26 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     dashboardTitle: "Manager Dashboard",
     dashboardText: "Your career data is now synced securely in the cloud.",
     secureAccess: "Secure Access",
-    newCareer: "New Career"
+    newCareer: "New Career",
+    
+    // Dashboard
+    hello: "Hello",
+    navHome: "Home",
+    navSquad: "Database",
+    navMarket: "Transfers",
+    navSettings: "Settings",
+
+    // Home
+    addTeam: "Add Team",
+    createCareer: "Start a new journey",
+    continueCareer: "Continue Career",
+    lastPlayed: "Last played",
+    season: "Season",
+
+    // Generic
+    editProfile: "Edit Profile",
+    appearance: "Appearance",
+    language: "Language"
   },
   [Language.IT]: {
     welcome: "Benvenuto su MCM+",
@@ -45,6 +64,46 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     dashboardTitle: "Dashboard Manager",
     dashboardText: "I dati della tua carriera sono ora sincronizzati nel cloud.",
     secureAccess: "Accesso Sicuro",
-    newCareer: "Nuova Carriera"
+    newCareer: "Nuova Carriera",
+
+    // Dashboard
+    hello: "Ciao",
+    navHome: "Home",
+    navSquad: "Database",
+    navMarket: "Mercato",
+    navSettings: "Impostazioni",
+
+    // Home
+    addTeam: "Aggiungi Squadra",
+    createCareer: "Inizia un nuovo viaggio",
+    continueCareer: "Continua Carriera",
+    lastPlayed: "Ultimo accesso",
+    season: "Stagione",
+
+    // Generic
+    editProfile: "Modifica Profilo",
+    appearance: "Aspetto",
+    language: "Lingua"
   }
 };
+
+export const MOCK_CAREERS: Career[] = [
+  {
+    id: '1',
+    teamName: 'Manchester City',
+    managerName: 'Pep Guardiola',
+    season: '2024/2025',
+    lastPlayed: '2h ago',
+    rating: 5,
+    logoUrl: 'https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?q=80&w=2070&auto=format&fit=crop'
+  },
+  {
+    id: '2',
+    teamName: 'Como 1907',
+    managerName: 'Cesc Fàbregas',
+    season: '2023/2024',
+    lastPlayed: '1d ago',
+    rating: 3,
+    logoUrl: 'https://images.unsplash.com/photo-1522778119026-d647f0565c6a?q=80&w=2070&auto=format&fit=crop'
+  }
+];

@@ -9,12 +9,32 @@ export enum Theme {
   AUTO = 'auto'
 }
 
+export enum AppView {
+  HOME = 'home',
+  SQUAD = 'squad',
+  MARKET = 'market',
+  SETTINGS = 'settings',
+  PROFILE = 'profile',
+  CAREER_DETAIL = 'career_detail'
+}
+
 export interface UserData {
   uid: string;
   email: string | null;
 }
 
+export interface Career {
+  id: string;
+  teamName: string;
+  managerName: string;
+  season: string;
+  lastPlayed: string; // ISO Date string or formatted string
+  logoUrl?: string; // URL for team background/logo
+  rating: number; // 0-5 stars
+}
+
 export interface Translation {
+  // Auth
   welcome: string;
   subtitle: string;
   login: string;
@@ -36,4 +56,23 @@ export interface Translation {
   dashboardText: string;
   secureAccess: string;
   newCareer: string;
+  
+  // Dashboard / Nav
+  hello: string;
+  navHome: string;
+  navSquad: string;
+  navMarket: string;
+  navSettings: string;
+  
+  // Home Content
+  addTeam: string;
+  createCareer: string;
+  continueCareer: string;
+  lastPlayed: string;
+  season: string;
+  
+  // Generic
+  editProfile: string;
+  appearance: string;
+  language: string;
 }
