@@ -1,6 +1,3 @@
-
-
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   createUserWithEmailAndPassword, 
@@ -324,7 +321,8 @@ const AddCareerModal = ({ t, userId, onClose }: { t: any, userId: string, onClos
           limit(10)
         );
         const snap = await getDocs(q);
-        setTeams(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Team)));
+        // Correct order: data first, then ID
+        setTeams(snap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Team)));
       } catch (err) {
         console.error(err);
       }
@@ -654,9 +652,8 @@ const CareerDetailModal = ({ career, t, onClose, userId }: { career: Career, t: 
       try {
         const q = query(collection(db, 'players'), where('teamId', '==', career.teamId));
         const snap = await getDocs(q);
-        // FIX: The original code used 'doc.data()' where 'doc' is the firestore function.
-        // We must use 'd.data()' where 'd' is the snapshot variable in the map.
-        let pl = snap.docs.map(d => ({ id: d.id, ...d.data() } as Player));
+        // Correct order: data first, then ID
+        let pl = snap.docs.map(d => ({ ...d.data(), id: d.id } as Player));
         
         // Apply career specific overrides
         pl = pl.map(p => {
@@ -950,6 +947,7 @@ const DatabaseView = ({ t }: { t: any }) => {
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editNameVal, setEditNameVal] = useState('');
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{isOpen: boolean, id: string | null}>({isOpen: false, id: null});
 
   useEffect(() => {
     const fetchData = async () => {
@@ -966,7 +964,8 @@ const DatabaseView = ({ t }: { t: any }) => {
         }
 
         const snapshot = await getDocs(q);
-        const results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // Correct order: data first, then ID
+        const results = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
 
         if (activeTab === 'leagues') {
            const leaguesSet = new Set<string>();
@@ -988,13 +987,34 @@ const DatabaseView = ({ t }: { t: any }) => {
     return () => clearTimeout(timer);
   }, [activeTab, searchQuery]);
 
-  const handleDelete = async (id: string, e: React.MouseEvent) => {
+  const handleRequestDelete = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!window.confirm(t.deleteConfirm)) return;
-    if (activeTab === 'leagues') return;
+    setDeleteConfirmation({ isOpen: true, id });
+  };
+
+  const executeDelete = async () => {
+    const id = deleteConfirmation.id;
+    if (!id) return;
+
     try {
-      await deleteDoc(doc(db, activeTab, id));
-      setData(prev => prev.filter(item => item.id !== id));
+      if (activeTab === 'leagues') {
+        // For leagues, we need to update all teams with this league to "Unknown"
+        const leagueName = id;
+        const q = query(collection(db, 'teams'), where('league', '==', leagueName));
+        const snap = await getDocs(q);
+        
+        const batch = writeBatch(db);
+        snap.docs.forEach(docSnap => {
+          batch.update(doc(db, 'teams', docSnap.id), { league: 'Unknown' });
+        });
+        await batch.commit();
+        setData(prev => prev.filter(item => item.id !== id));
+      } else {
+        // For players and teams, direct delete
+        await deleteDoc(doc(db, activeTab, id));
+        setData(prev => prev.filter(item => item.id !== id));
+      }
+      setDeleteConfirmation({ isOpen: false, id: null });
     } catch (err) {
       console.error(err);
       alert(t.errorGeneric);
@@ -1009,10 +1029,33 @@ const DatabaseView = ({ t }: { t: any }) => {
 
   const handleUpdateSave = async (id: string, e: React.MouseEvent) => {
      e.stopPropagation();
-     if (activeTab === 'leagues') return;
+     
+     // Check if name actually changed
+     const currentItem = data.find(item => item.id === id);
+     if (currentItem && currentItem.name === editNameVal) {
+        setEditingId(null);
+        return;
+     }
+
      try {
-       await updateDoc(doc(db, activeTab, id), { name: editNameVal });
-       setData(prev => prev.map(item => item.id === id ? { ...item, name: editNameVal } : item));
+       if (activeTab === 'leagues') {
+          // Batch update teams with old league name to new league name
+          const oldLeagueName = id;
+          const q = query(collection(db, 'teams'), where('league', '==', oldLeagueName));
+          const snap = await getDocs(q);
+          
+          const batch = writeBatch(db);
+          snap.docs.forEach(docSnap => {
+            batch.update(doc(db, 'teams', docSnap.id), { league: editNameVal });
+          });
+          await batch.commit();
+          // Update local state
+          setData(prev => prev.map(item => item.id === id ? { id: editNameVal, name: editNameVal } : item));
+       } else {
+          // Direct update for players and teams
+          await updateDoc(doc(db, activeTab, id), { name: editNameVal });
+          setData(prev => prev.map(item => item.id === id ? { ...item, name: editNameVal } : item));
+       }
        setEditingId(null);
      } catch (err) {
        console.error(err);
@@ -1021,9 +1064,9 @@ const DatabaseView = ({ t }: { t: any }) => {
   };
 
   return (
-    <div className="h-full flex flex-col pt-8 pb-32 px-4 animate-fadeIn">
+    <div className="h-full flex flex-col pt-8 px-4 animate-fadeIn">
        <h2 className="text-3xl font-black mb-6 px-2">{t.navSquad}</h2>
-       <div className="flex p-1 bg-black/5 dark:bg-white/5 rounded-xl mb-6 mx-2">
+       <div className="flex p-1 bg-black/5 dark:bg-white/5 rounded-xl mb-6 mx-2 shrink-0">
           {[
             { id: 'players', label: t.dbPlayers },
             { id: 'teams', label: t.dbTeams },
@@ -1042,7 +1085,7 @@ const DatabaseView = ({ t }: { t: any }) => {
             </button>
           ))}
        </div>
-       <div className="relative mb-4 mx-2">
+       <div className="relative mb-4 mx-2 shrink-0">
          <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 opacity-40" />
          <input 
            type="text" 
@@ -1052,7 +1095,7 @@ const DatabaseView = ({ t }: { t: any }) => {
            className="w-full bg-white dark:bg-white/5 border border-obsidian/5 dark:border-ghost/5 rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 ring-mint/50 transition-all"
          />
        </div>
-       <div className="flex-1 overflow-y-auto custom-scrollbar px-2 space-y-2">
+       <div className="flex-1 overflow-y-auto custom-scrollbar px-2 space-y-2 pb-32">
           {loading ? (
              <div className="flex justify-center py-12"><ArrowPathIcon className="w-8 h-8 animate-spin text-mint" /></div>
           ) : data.length === 0 ? (
@@ -1094,21 +1137,20 @@ const DatabaseView = ({ t }: { t: any }) => {
                       </div>
                    </div>
 
-                   <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                   <div className="flex items-center gap-2">
                       {editingId === item.id ? (
                         <button onClick={(e) => handleUpdateSave(item.id, e)} className="p-2 text-mint hover:bg-mint/10 rounded-lg">
                            <CheckIcon className="w-5 h-5"/>
                         </button>
-                      ) : activeTab !== 'leagues' && (
+                      ) : (
                         <button onClick={(e) => handleUpdateStart(item, e)} className="p-2 text-obsidian dark:text-ghost hover:bg-black/5 dark:hover:bg-white/5 rounded-lg">
                            <PencilSquareIcon className="w-5 h-5"/>
                         </button>
                       )}
-                      {activeTab !== 'leagues' && (
-                        <button onClick={(e) => handleDelete(item.id, e)} className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg">
+                      
+                      <button onClick={(e) => handleRequestDelete(item.id, e)} className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg">
                            <TrashIcon className="w-5 h-5"/>
-                        </button>
-                      )}
+                      </button>
                    </div>
                 </div>
              ))
@@ -1117,6 +1159,17 @@ const DatabaseView = ({ t }: { t: any }) => {
        {selectedPlayer && (
          <PlayerDetailModal player={selectedPlayer} t={t} onClose={() => setSelectedPlayer(null)} />
        )}
+
+      <ConfirmationModal 
+        isOpen={deleteConfirmation.isOpen}
+        onClose={() => setDeleteConfirmation({isOpen: false, id: null})}
+        onConfirm={executeDelete}
+        title={t.deleteConfirm}
+        message={t.deleteConfirm}
+        confirmText={t.deleteAction}
+        cancelText={t.cancel}
+        isDanger={true}
+      />
     </div>
   );
 };
@@ -1654,7 +1707,8 @@ export default function App() {
     if (!user) return;
     const q = query(collection(db, 'careers'), where('userId', '==', user.uid));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const c = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Career));
+      // Correct order: data first, then ID
+      const c = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Career));
       c.sort((a, b) => {
         if (a.isActive && !b.isActive) return -1;
         if (!a.isActive && b.isActive) return 1;
@@ -1748,9 +1802,9 @@ export default function App() {
              </button>
           </div>
         )}
-        <div className="h-full pb-32 overflow-y-auto overflow-x-hidden">
+        <div className="h-full overflow-y-auto overflow-x-hidden">
           {currentView === AppView.HOME && (
-            <div className="flex flex-col h-full justify-center">
+            <div className="flex flex-col h-full justify-center pb-32">
               <div className="w-full overflow-x-auto pb-8 pt-4 hide-scrollbar snap-x flex gap-6 px-8 items-center" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                 <AddCareerCard t={t} onClick={() => setShowAddCareerModal(true)} />
                 {careers.map(career => (<CareerCard key={career.id} career={career} t={t} onClick={() => setSelectedCareer(career)} />))}
@@ -1760,7 +1814,7 @@ export default function App() {
           )}
           {currentView === AppView.SQUAD && (<DatabaseView t={t} />)}
           {currentView === AppView.MARKET && (
-            <div className="flex items-center justify-center h-[60vh] opacity-30"><div className="text-center"><CurrencyDollarIcon className="w-16 h-16 mx-auto mb-4" /><p>{t.navMarket} - Coming Soon</p></div></div>
+            <div className="flex items-center justify-center h-[60vh] opacity-30 pb-32"><div className="text-center"><CurrencyDollarIcon className="w-16 h-16 mx-auto mb-4" /><p>{t.navMarket} - Coming Soon</p></div></div>
           )}
           {currentView === AppView.SETTINGS && (
              <SettingsView t={t} user={user} handleLogout={handleLogout} language={language} setLanguage={setLanguage} theme={theme} setTheme={setTheme} onProfileClick={() => setCurrentView(AppView.PROFILE)} userAvatar={userAvatar} currency={currency} setCurrency={setCurrency} wageFrequency={wageFrequency} setWageFrequency={setWageFrequency} measurementSystem={measurementSystem} setMeasurementSystem={setMeasurementSystem} />
