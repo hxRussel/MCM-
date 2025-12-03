@@ -293,27 +293,40 @@ const ImportSquadModal = ({ isOpen, onClose, onImport, t }: any) => {
 
   // Gemini AI Logic
   const analyzeData = async (content: any, type: 'text' | 'image') => {
+    // 1. Check if API Key exists
+    if (!process.env.API_KEY) {
+      alert("API Key is missing! Ensure process.env.API_KEY is configured.");
+      return;
+    }
+
     setIsLoading(true);
     setPreviewPlayers([]);
     
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       
+      // 2. Stricter Anti-Hallucination Prompt
       const systemPrompt = `
-        You are a FC24/FC25 database expert. Extract player data from the provided ${type}.
-        Return ONLY a JSON array of objects. No markdown, no code blocks.
-        Each object must have: 
-        - name (string)
-        - age (number, default 20 if unknown)
-        - overall (number, default 70 if unknown)
-        - position (string, use standard abbreviations like GK, CB, LB, RB, CDM, CM, CAM, LM, RM, LW, RW, ST, CF)
-        - nationality (string, default 'Unknown')
-        - value (number, estimate based on overall if unknown, just raw number)
-        - wage (number, estimate based on overall if unknown, just raw number)
+        You are an advanced OCR and Data Extraction engine specialized in football/soccer video games (FC 24, FC 25).
         
-        If the input is an image, do your best to OCR the stats.
-        If position is vague (e.g. Defender), guess CB.
-        Limit to valid JSON array only.
+        TASK: Extract player data from the provided ${type}.
+        
+        CRITICAL RULES:
+        1. Return ONLY a valid JSON array of objects. NO markdown, NO explanations.
+        2. DO NOT INVENT PLAYERS. If you cannot clearly see/read a player, DO NOT include them.
+        3. If the input is empty or unintelligible, return an empty array: [].
+        4. Do not generate example data or "Mock Player". Only extract real visible text.
+        
+        DATA STRUCTURE PER PLAYER:
+        - name (string): Exact name as shown.
+        - age (number): If not visible, guess based on real life knowledge of the player, otherwise 20.
+        - overall (number): The rating number (e.g., 82). If missing, 70.
+        - position (string): Use standard codes (GK, CB, LB, RB, CDM, CM, CAM, LM, RM, LW, RW, ST, CF).
+        - nationality (string): 'Unknown' if not visible.
+        - value (number): Raw number (no symbols). Estimate if unknown based on OVR.
+        - wage (number): Raw number (no symbols). Estimate if unknown.
+        
+        If the image is a squad list, process all rows.
       `;
 
       let response: string | undefined;
@@ -321,7 +334,7 @@ const ImportSquadModal = ({ isOpen, onClose, onImport, t }: any) => {
       if (type === 'text') {
         const result = await ai.models.generateContent({
             model: "gemini-2.5-flash",
-            contents: `${systemPrompt}\n\nDATA:\n${textInput}`
+            contents: `${systemPrompt}\n\nINPUT DATA:\n${textInput}`
         });
         response = result.text;
       } else {
@@ -346,23 +359,38 @@ const ImportSquadModal = ({ isOpen, onClose, onImport, t }: any) => {
       const text = response || "";
       // Clean response (remove potential markdown)
       const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
-      const players = JSON.parse(cleanJson);
+      
+      let players = [];
+      try {
+        players = JSON.parse(cleanJson);
+      } catch (jsonError) {
+        console.warn("Failed to parse JSON, attempting fallback regex or empty", text);
+        // If empty or invalid, players remains []
+      }
+
+      if (!Array.isArray(players)) {
+        players = [];
+      }
 
       // Add IDs and defaults
       const formattedPlayers = players.map((p: any) => ({
         id: 'imported-' + Date.now() + Math.random(),
-        name: p.name || 'Unknown',
-        age: p.age || 20,
-        overall: p.overall || 70,
+        name: p.name || 'Unknown Player',
+        age: typeof p.age === 'number' ? p.age : 20,
+        overall: typeof p.overall === 'number' ? p.overall : 70,
         position: p.position || 'CM',
         nationality: p.nationality || 'Unknown',
-        value: p.value || 1000000,
-        wage: p.wage || 5000,
+        value: typeof p.value === 'number' ? p.value : 1000000,
+        wage: typeof p.wage === 'number' ? p.wage : 5000,
         isHomegrown: false,
         isNonEU: false
       }));
 
       setPreviewPlayers(formattedPlayers);
+      
+      if (formattedPlayers.length === 0) {
+        alert(t.noPlayersFound);
+      }
 
     } catch (e) {
       console.error("AI Error", e);
