@@ -338,7 +338,7 @@ const ImportSquadModal = ({ isOpen, onClose, onImport, t }: any) => {
             model: "gemini-2.5-flash",
             contents: `${systemPrompt}\n\nINPUT DATA TO PARSE:\n${textInput}`
         });
-        response = result.response.text;
+        response = result.text;
       } else {
         // Image handling
          const result = await ai.models.generateContent({
@@ -355,7 +355,7 @@ const ImportSquadModal = ({ isOpen, onClose, onImport, t }: any) => {
                 ]
             }
         });
-        response = result.response.text;
+        response = result.text;
       }
 
       const text = response || "";
