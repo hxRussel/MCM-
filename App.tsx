@@ -295,7 +295,7 @@ const ImportSquadModal = ({ isOpen, onClose, onImport, t }: any) => {
   const analyzeData = async (content: any, type: 'text' | 'image') => {
     // 1. Check if API Key exists
     if (!process.env.API_KEY) {
-      alert("API Key is missing! Ensure process.env.API_KEY is configured.");
+      alert("API Key is missing! You must add 'API_KEY' to your Vercel Environment Variables.");
       return;
     }
 
@@ -305,28 +305,30 @@ const ImportSquadModal = ({ isOpen, onClose, onImport, t }: any) => {
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       
-      // 2. Stricter Anti-Hallucination Prompt
+      // 2. VERY STRICT Anti-Hallucination Prompt
       const systemPrompt = `
-        You are an advanced OCR and Data Extraction engine specialized in football/soccer video games (FC 24, FC 25).
+        You are a strict OCR Data Extraction engine for FC 24/FC 25.
         
-        TASK: Extract player data from the provided ${type}.
+        TASK: Extract ONLY clearly visible player data.
         
-        CRITICAL RULES:
-        1. Return ONLY a valid JSON array of objects. NO markdown, NO explanations.
-        2. DO NOT INVENT PLAYERS. If you cannot clearly see/read a player, DO NOT include them.
-        3. If the input is empty or unintelligible, return an empty array: [].
-        4. Do not generate example data or "Mock Player". Only extract real visible text.
+        STRICT RULES:
+        1. DO NOT HALLUCINATE. DO NOT INVENT PLAYERS. 
+        2. If you cannot read a name clearly, SKIP IT.
+        3. If the image is blurry, return an empty array [].
+        4. Return ONLY a valid JSON array. No markdown.
+        5. Look for these headers: POS, NAME, OVR, AGE.
         
-        DATA STRUCTURE PER PLAYER:
-        - name (string): Exact name as shown.
-        - age (number): If not visible, guess based on real life knowledge of the player, otherwise 20.
-        - overall (number): The rating number (e.g., 82). If missing, 70.
-        - position (string): Use standard codes (GK, CB, LB, RB, CDM, CM, CAM, LM, RM, LW, RW, ST, CF).
-        - nationality (string): 'Unknown' if not visible.
-        - value (number): Raw number (no symbols). Estimate if unknown based on OVR.
-        - wage (number): Raw number (no symbols). Estimate if unknown.
+        JSON STRUCTURE:
+        [
+          {
+            "name": "Exact Name Read",
+            "position": "GK/CB/LB/RB/CDM/CM/CAM/LM/RM/LW/RW/ST/CF",
+            "overall": number (e.g. 82),
+            "age": number (e.g. 24)
+          }
+        ]
         
-        If the image is a squad list, process all rows.
+        If unsure about a player, do NOT include them. Better to have 0 players than 1 fake player.
       `;
 
       let response: string | undefined;
@@ -334,9 +336,9 @@ const ImportSquadModal = ({ isOpen, onClose, onImport, t }: any) => {
       if (type === 'text') {
         const result = await ai.models.generateContent({
             model: "gemini-2.5-flash",
-            contents: `${systemPrompt}\n\nINPUT DATA:\n${textInput}`
+            contents: `${systemPrompt}\n\nINPUT DATA TO PARSE:\n${textInput}`
         });
-        response = result.text;
+        response = result.response.text;
       } else {
         // Image handling
          const result = await ai.models.generateContent({
@@ -353,7 +355,7 @@ const ImportSquadModal = ({ isOpen, onClose, onImport, t }: any) => {
                 ]
             }
         });
-        response = result.text;
+        response = result.response.text;
       }
 
       const text = response || "";
@@ -364,7 +366,7 @@ const ImportSquadModal = ({ isOpen, onClose, onImport, t }: any) => {
       try {
         players = JSON.parse(cleanJson);
       } catch (jsonError) {
-        console.warn("Failed to parse JSON, attempting fallback regex or empty", text);
+        console.warn("Failed to parse JSON", text);
         // If empty or invalid, players remains []
       }
 
@@ -375,13 +377,13 @@ const ImportSquadModal = ({ isOpen, onClose, onImport, t }: any) => {
       // Add IDs and defaults
       const formattedPlayers = players.map((p: any) => ({
         id: 'imported-' + Date.now() + Math.random(),
-        name: p.name || 'Unknown Player',
+        name: p.name || 'Unknown',
         age: typeof p.age === 'number' ? p.age : 20,
         overall: typeof p.overall === 'number' ? p.overall : 70,
         position: p.position || 'CM',
-        nationality: p.nationality || 'Unknown',
-        value: typeof p.value === 'number' ? p.value : 1000000,
-        wage: typeof p.wage === 'number' ? p.wage : 5000,
+        nationality: 'Unknown', // AI cannot usually see nationality flags well enough
+        value: 1000000,
+        wage: 5000,
         isHomegrown: false,
         isNonEU: false
       }));
@@ -394,7 +396,7 @@ const ImportSquadModal = ({ isOpen, onClose, onImport, t }: any) => {
 
     } catch (e) {
       console.error("AI Error", e);
-      alert(t.errorGeneric);
+      alert(t.errorGeneric + " Check API Key.");
     } finally {
       setIsLoading(false);
     }
