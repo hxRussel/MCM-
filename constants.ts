@@ -14,7 +14,8 @@ export const MOCK_CAREER: Career = {
   rating: 5,
   isActive: true,
   logoUrl: 'https://images.unsplash.com/photo-1522778119026-d647f0565c6a?q=80&w=2070&auto=format&fit=crop',
-  playerOverrides: {} 
+  playerOverrides: {},
+  seasonStartingOveralls: {}
 };
 
 export const MOCK_PLAYERS: Player[] = [
@@ -87,6 +88,14 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     homegrown: "Homegrown",
     nonEu: "Non-EU",
     nationality: "Nationality",
+
+    // Stats
+    statsTotalPlayers: "Squad Size",
+    statsAvgAge: "Avg Age",
+    statsHomegrown: "Homegrown",
+    statsNonEu: "Non-EU",
+    statsOver22: "Over 22",
+    statsSeasonalGrowth: "Seas. +/-",
 
     // Generic
     editProfile: "Edit Profile",
@@ -196,6 +205,14 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     homegrown: "Vivaio Club",
     nonEu: "Extracomunitario",
     nationality: "Nazionalità",
+
+    // Stats
+    statsTotalPlayers: "Rosa",
+    statsAvgAge: "Età Media",
+    statsHomegrown: "Vivaio",
+    statsNonEu: "Extra-UE",
+    statsOver22: "Over 22",
+    statsSeasonalGrowth: "+/- Stag.",
 
     // Generic
     editProfile: "Modifica Profilo",

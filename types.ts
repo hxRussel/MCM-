@@ -54,6 +54,7 @@ export interface Career {
   isActive: boolean;
   logoUrl?: string; // Optional
   playerOverrides?: Record<string, { overall?: number; isHomegrown?: boolean; isNonEU?: boolean }>; // Stores local changes to players
+  seasonStartingOveralls?: Record<string, number>; // Stores overall snapshot at season start
 }
 
 export interface Team {
@@ -69,6 +70,7 @@ export interface Player {
   teamId?: string;
   team?: string;
   overall: number;
+  originalOverall?: number; // Helper for stats calc
   position: string;
   age: number;
   height: number;
@@ -150,6 +152,14 @@ export interface Translation {
   homegrown: string;
   nonEu: string;
   nationality: string;
+  
+  // Stats Section
+  statsTotalPlayers: string;
+  statsAvgAge: string;
+  statsHomegrown: string;
+  statsNonEu: string;
+  statsOver22: string;
+  statsSeasonalGrowth: string;
   
   // Generic
   editProfile: string;

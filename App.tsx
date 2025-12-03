@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   createUserWithEmailAndPassword, 
@@ -380,7 +378,8 @@ const AddCareerModal = ({ t, userId, onClose }: { t: any, userId: string, onClos
         isActive: false, 
         rating: 3,
         logoUrl: "", 
-        playerOverrides: {}
+        playerOverrides: {},
+        seasonStartingOveralls: {}
       };
       batch.set(newCareerRef, newCareer);
 
@@ -572,6 +571,11 @@ const PlayerDetailModal = ({ player, onClose, t, onSave }: { player: Player, onC
            <div className="flex gap-4">
               <div className="w-20 h-20 rounded-full bg-white dark:bg-white/10 flex items-center justify-center text-3xl font-black shadow-lg relative shrink-0">
                  <span className={getOverallColor(editedOverall)}>{editedOverall}</span>
+                 {diff !== 0 && (
+                    <div className={`absolute -top-1 -right-1 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shadow-sm ${diff > 0 ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
+                      {diff > 0 ? '+' : ''}{diff}
+                    </div>
+                 )}
               </div>
               <div className="flex-1">
                 <h2 className="text-2xl font-black uppercase leading-none mb-1">{player.name}</h2>
@@ -604,11 +608,6 @@ const PlayerDetailModal = ({ player, onClose, t, onSave }: { player: Player, onC
                               className="w-12 bg-black/10 dark:bg-white/20 rounded px-1 py-0.5 text-center text-sm font-bold outline-none focus:ring-1 ring-mint"
                             />
                           </div>
-                          {diff !== 0 && (
-                            <span className={`text-sm font-bold ${diff > 0 ? 'text-green-500' : 'text-red-500'}`}>
-                              {diff > 0 ? '+' : ''}{diff}
-                            </span>
-                          )}
                       </div>
 
                       <div className="flex items-center gap-4">
@@ -689,8 +688,8 @@ const CareerDetailModal = ({ career, t, onClose, userId }: { career: Career, t: 
       try {
         const q = query(collection(db, 'players'), where('teamId', '==', career.teamId));
         const snap = await getDocs(q);
-        // Correct order: data first, then ID
-        let pl = snap.docs.map(d => ({ ...d.data(), id: d.id } as Player));
+        // Correct order: data first, then ID. Also preserve originalOverall from DB for stats calc
+        let pl = snap.docs.map(d => ({ ...d.data(), id: d.id, originalOverall: d.data().overall } as Player));
         
         // Apply career specific overrides
         pl = pl.map(p => {
@@ -714,6 +713,28 @@ const CareerDetailModal = ({ career, t, onClose, userId }: { career: Career, t: 
     };
     fetchSquad();
   }, [career.id, career.teamId, career.seasonOffset, career.playerOverrides]);
+
+  const stats = useMemo(() => {
+    if (players.length === 0) return null;
+    const total = players.length;
+    const avgAge = (players.reduce((acc, p) => acc + p.age, 0) / total).toFixed(1);
+    const homegrown = players.filter(p => p.isHomegrown).length;
+    const nonEu = players.filter(p => p.isNonEU).length;
+    const over22 = players.filter(p => p.age > 22).length;
+    
+    let growth = 0;
+    players.forEach(p => {
+       const startOvr = career.seasonStartingOveralls?.[p.id];
+       if (startOvr !== undefined) {
+         growth += (p.overall - startOvr);
+       } else if (p.originalOverall !== undefined) {
+         // Fallback if no seasonal snapshot exists (new career)
+         growth += (p.overall - p.originalOverall);
+       }
+    });
+
+    return { total, avgAge, homegrown, nonEu, over22, growth };
+  }, [players, career.seasonStartingOveralls]);
 
   const handleDelete = () => {
     if (career.id === MOCK_CAREER.id) {
@@ -745,8 +766,16 @@ const CareerDetailModal = ({ career, t, onClose, userId }: { career: Career, t: 
 
     try {
       const newOffset = (career.seasonOffset || 0) + 1;
+      
+      // Snapshot current overalls to reset growth counter for next season
+      const currentOveralls: Record<string, number> = {};
+      players.forEach(p => {
+        currentOveralls[p.id] = p.overall;
+      });
+
       await updateDoc(doc(db, 'careers', career.id), {
-        seasonOffset: newOffset
+        seasonOffset: newOffset,
+        seasonStartingOveralls: currentOveralls
       });
       // The parent listener will update the career prop, which triggers useEffect to re-fetch/re-calc
     } catch (err) {
@@ -929,6 +958,32 @@ const CareerDetailModal = ({ career, t, onClose, userId }: { career: Career, t: 
 
           {/* Content */}
           <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+             {/* Stats Grid */}
+             {stats && (
+               <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-4 mb-6">
+                 {[
+                   { label: t.statsTotalPlayers, val: stats.total },
+                   { label: t.statsAvgAge, val: stats.avgAge },
+                   { label: t.statsHomegrown, val: stats.homegrown, icon: AcademicCapIcon, color: 'text-mint' },
+                   { label: t.statsNonEu, val: stats.nonEu, icon: IdentificationIcon, color: 'text-yellow-500' },
+                   { label: t.statsOver22, val: stats.over22 },
+                   { 
+                     label: t.statsSeasonalGrowth, 
+                     val: (stats.growth > 0 ? '+' : '') + stats.growth, 
+                     textColor: stats.growth > 0 ? 'text-green-500' : stats.growth < 0 ? 'text-red-500' : ''
+                   }
+                 ].map((stat, i) => (
+                   <div key={i} className="bg-black/5 dark:bg-white/5 p-3 rounded-xl flex flex-col items-center justify-center text-center">
+                      <span className="text-[10px] uppercase font-bold opacity-50 mb-1">{stat.label}</span>
+                      <div className={`text-lg font-black flex items-center gap-1 ${stat.textColor || ''}`}>
+                        {stat.icon && <stat.icon className={`w-4 h-4 ${stat.color}`} />}
+                        {stat.val}
+                      </div>
+                   </div>
+                 ))}
+               </div>
+             )}
+
              <div className="flex items-center gap-2 mb-6">
                 <UserGroupIcon className="w-5 h-5 text-mint"/>
                 <h3 className="font-bold text-lg">{t.squadList}</h3>
@@ -1316,388 +1371,220 @@ const BottomNav = ({ currentView, setView, t }: { currentView: AppView, setView:
   );
 };
 
-// --- Main App and Helper Functions ---
-// (The rest of the file remains unchanged, included here for context continuity if needed, 
-// but the diff above focused on injecting `generateMockSquad` and updating `AddCareerModal`)
-
-// --- Profile View ---
-const ProfileView = ({ t, user, goBack, userAvatar }: { t: any, user: User, goBack: () => void, userAvatar: string | null }) => {
-  const [displayName, setDisplayName] = useState(user.displayName || '');
-  const [isEditingName, setIsEditingName] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [statusMsg, setStatusMsg] = useState('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleNameSave = async () => {
-    if (!displayName.trim()) return;
-    try {
-      await updateProfile(user, { displayName: displayName });
-      setIsEditingName(false);
-      setStatusMsg(t.nameUpdated);
-      setTimeout(() => setStatusMsg(''), 3000);
-    } catch (e) {
-      console.error(e);
-      setStatusMsg(t.errorGeneric);
-    }
-  };
-
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setUploading(true);
-      try {
-        const base64Img = await compressImage(file);
-        await setDoc(doc(db, 'users', user.uid), { photoBase64: base64Img }, { merge: true });
-        setStatusMsg(t.photoUpdated);
-      } catch (err) {
-        console.error(err);
-        setStatusMsg("Error updating photo.");
-      } finally {
-        setUploading(false);
-        setTimeout(() => setStatusMsg(''), 3000);
-      }
-    }
-  };
-
-  const handleDeletePhoto = async () => {
-    if (!window.confirm("Are you sure?")) return;
-    setUploading(true);
-    try {
-      await setDoc(doc(db, 'users', user.uid), { photoBase64: null }, { merge: true });
-      setStatusMsg(t.photoDeleted);
-    } catch (err) {
-       console.error(err);
-       setStatusMsg(t.errorGeneric);
-    } finally {
-      setUploading(false);
-      setTimeout(() => setStatusMsg(''), 3000);
-    }
-  };
-
-  const photoUrl = userAvatar || user.photoURL;
-  const initials = (user.email || 'U').charAt(0).toUpperCase();
-
+const SettingsView = ({ 
+  t, 
+  user, 
+  handleLogout, 
+  language, 
+  setLanguage, 
+  theme, 
+  setTheme, 
+  onProfileClick,
+  userAvatar,
+  currency,
+  setCurrency,
+  wageFrequency,
+  setWageFrequency,
+  measurementSystem,
+  setMeasurementSystem
+}: any) => {
   return (
-    <div className="px-6 pt-12 pb-32 max-w-md mx-auto w-full animate-fadeIn h-full flex flex-col">
-      <div className="flex items-center gap-4 mb-8">
-        <button onClick={goBack} className="p-2 -ml-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-full">
-           <ChevronLeftIcon className="w-6 h-6"/>
-        </button>
-        <h2 className="text-3xl font-black">{t.profileTitle}</h2>
-      </div>
-
-      <div className="flex flex-col items-center">
-        <div className="relative group mb-8">
-          <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-white dark:border-white/10 shadow-2xl bg-mint flex items-center justify-center">
-            {photoUrl ? (
-              <img src={photoUrl} alt="Profile" className="w-full h-full object-cover" />
-            ) : (
-              <span className="text-5xl font-bold text-obsidian">{initials}</span>
-            )}
-          </div>
-          <div className="absolute -bottom-2 -right-2 flex gap-2">
-             <button 
-               onClick={() => fileInputRef.current?.click()}
-               className="w-10 h-10 rounded-full bg-mint text-obsidian flex items-center justify-center shadow-lg hover:bg-mint-hover hover:scale-105 transition-all"
-               title={t.changePhoto}
-             >
-                {uploading ? <ArrowPathIcon className="w-5 h-5 animate-spin"/> : <CameraIcon className="w-5 h-5"/>}
-             </button>
-             <input type="file" ref={fileInputRef} hidden accept="image/*" onChange={handleFileSelect} />
-             {photoUrl && (
-               <button 
-                onClick={handleDeletePhoto}
-                className="w-10 h-10 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg hover:bg-red-600 hover:scale-105 transition-all"
-                title={t.deletePhoto}
-               >
-                 <TrashIcon className="w-5 h-5"/>
-               </button>
-             )}
-          </div>
-        </div>
-
-        {statusMsg && (
-          <div className="mb-6 px-4 py-2 bg-mint/10 text-mint rounded-lg text-sm font-bold flex items-center gap-2 animate-fadeIn">
-            <CheckCircleIcon className="w-5 h-5" /> {statusMsg}
-          </div>
-        )}
-
-        <div className="w-full bg-white dark:bg-white/5 rounded-2xl p-6 shadow-sm">
-           <div className="flex justify-between items-center mb-2">
-             <label className="text-xs font-bold uppercase opacity-50 tracking-wider">{t.nickname}</label>
-             {!isEditingName && (
-               <button onClick={() => setIsEditingName(true)} className="text-mint text-sm font-bold hover:underline">
-                 {t.edit}
-               </button>
-             )}
-           </div>
-
-           {isEditingName ? (
-             <div className="flex gap-2">
-               <input 
-                 value={displayName}
-                 onChange={(e) => setDisplayName(e.target.value)}
-                 className="flex-1 bg-black/5 dark:bg-white/10 rounded px-3 py-2 outline-none focus:ring-2 ring-mint rounded-lg"
-                 autoFocus
-               />
-               <button onClick={handleNameSave} className="p-2 bg-mint text-obsidian rounded-lg hover:opacity-90"><CheckIcon className="w-5 h-5"/></button>
-               <button onClick={() => { setIsEditingName(false); setDisplayName(user.displayName || ''); }} className="p-2 bg-red-500/10 text-red-500 rounded-lg hover:bg-red-500/20"><XMarkIcon className="w-5 h-5"/></button>
+    <div className="h-full flex flex-col pt-24 px-4 animate-fadeIn pb-32">
+       <h2 className="text-3xl font-black mb-6 px-2">{t.navSettings}</h2>
+       <div 
+         onClick={onProfileClick}
+         className="bg-white dark:bg-white/5 p-4 rounded-2xl flex items-center justify-between mb-8 cursor-pointer hover:bg-black/5 dark:hover:bg-white/10 transition-colors group"
+       >
+          <div className="flex items-center gap-4">
+             <div className="w-14 h-14 rounded-full bg-mint flex items-center justify-center font-bold text-xl overflow-hidden border-2 border-white dark:border-white/10">
+                {userAvatar || user.photoURL ? (
+                  <img src={userAvatar || user.photoURL} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-obsidian">{user.email?.charAt(0).toUpperCase()}</span>
+                )}
              </div>
-           ) : (
-             <p className="text-xl font-medium">{displayName || 'Manager'}</p>
-           )}
-        </div>
-        <div className="w-full mt-6 opacity-50 text-center text-xs">
-          UID: {user.uid.slice(0, 8)}...
-        </div>
-      </div>
+             <div>
+                <h3 className="font-bold text-lg">{user.displayName || 'Manager'}</h3>
+                <p className="text-sm opacity-50">{t.editProfile}</p>
+             </div>
+          </div>
+          <ChevronRightIcon className="w-5 h-5 opacity-30 group-hover:opacity-100 group-hover:translate-x-1 transition-all"/>
+       </div>
+
+       <section className="mb-8">
+          <h3 className="text-xs font-bold uppercase opacity-50 mb-4 px-2 tracking-wider">{t.appearance}</h3>
+          <div className="bg-white dark:bg-white/5 rounded-2xl overflow-hidden">
+             <div className="p-4 flex items-center justify-between border-b border-obsidian/5 dark:border-white/5">
+                <div className="flex items-center gap-3">
+                   <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500"><GlobeEuropeAfricaIcon className="w-5 h-5"/></div>
+                   <span className="font-medium">{t.language}</span>
+                </div>
+                <div className="flex bg-black/5 dark:bg-white/5 p-1 rounded-lg">
+                   <button onClick={() => setLanguage(Language.EN)} className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${language === Language.EN ? 'bg-white dark:bg-white/10 shadow-sm' : 'opacity-50'}`}>EN</button>
+                   <button onClick={() => setLanguage(Language.IT)} className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${language === Language.IT ? 'bg-white dark:bg-white/10 shadow-sm' : 'opacity-50'}`}>IT</button>
+                </div>
+             </div>
+             <div className="p-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                   <div className="w-8 h-8 rounded-full bg-purple-500/10 flex items-center justify-center text-purple-500"><MoonIcon className="w-5 h-5"/></div>
+                   <span className="font-medium">Theme</span>
+                </div>
+                <div className="flex bg-black/5 dark:bg-white/5 p-1 rounded-lg">
+                   <button onClick={() => setTheme(Theme.LIGHT)} className={`p-1.5 rounded-md transition-all ${theme === Theme.LIGHT ? 'bg-white dark:bg-white/10 shadow-sm' : 'opacity-50'}`}><SunIcon className="w-4 h-4"/></button>
+                   <button onClick={() => setTheme(Theme.AUTO)} className={`p-1.5 rounded-md transition-all ${theme === Theme.AUTO ? 'bg-white dark:bg-white/10 shadow-sm' : 'opacity-50'}`}><ComputerDesktopIcon className="w-4 h-4"/></button>
+                   <button onClick={() => setTheme(Theme.DARK)} className={`p-1.5 rounded-md transition-all ${theme === Theme.DARK ? 'bg-white dark:bg-white/10 shadow-sm' : 'opacity-50'}`}><MoonIcon className="w-4 h-4"/></button>
+                </div>
+             </div>
+          </div>
+       </section>
+
+       <section className="mb-8">
+          <h3 className="text-xs font-bold uppercase opacity-50 mb-4 px-2 tracking-wider">{t.preferences}</h3>
+          <div className="bg-white dark:bg-white/5 rounded-2xl overflow-hidden divide-y divide-obsidian/5 dark:divide-white/5">
+             <div className="p-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                   <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center text-green-500"><BanknotesIcon className="w-5 h-5"/></div>
+                   <span className="font-medium">{t.currency}</span>
+                </div>
+                <select 
+                  value={currency} 
+                  onChange={(e) => setCurrency(e.target.value as Currency)}
+                  className="bg-black/5 dark:bg-white/10 border-none rounded-lg text-sm font-bold px-3 py-1 outline-none"
+                >
+                   <option value={Currency.EUR}>EUR (€)</option>
+                   <option value={Currency.USD}>USD ($)</option>
+                   <option value={Currency.GBP}>GBP (£)</option>
+                </select>
+             </div>
+             <div className="p-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                   <div className="w-8 h-8 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-500"><CalendarDaysIcon className="w-5 h-5"/></div>
+                   <span className="font-medium">{t.wageFrequency}</span>
+                </div>
+                <div className="flex bg-black/5 dark:bg-white/5 p-1 rounded-lg">
+                   <button onClick={() => setWageFrequency(WageFrequency.WEEKLY)} className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${wageFrequency === WageFrequency.WEEKLY ? 'bg-white dark:bg-white/10 shadow-sm' : 'opacity-50'}`}>{t.weekly}</button>
+                   <button onClick={() => setWageFrequency(WageFrequency.YEARLY)} className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${wageFrequency === WageFrequency.YEARLY ? 'bg-white dark:bg-white/10 shadow-sm' : 'opacity-50'}`}>{t.yearly}</button>
+                </div>
+             </div>
+             <div className="p-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                   <div className="w-8 h-8 rounded-full bg-red-500/10 flex items-center justify-center text-red-500"><ScaleIcon className="w-5 h-5"/></div>
+                   <span className="font-medium">{t.measurements}</span>
+                </div>
+                <div className="flex bg-black/5 dark:bg-white/5 p-1 rounded-lg">
+                   <button onClick={() => setMeasurementSystem(MeasurementSystem.METRIC)} className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${measurementSystem === MeasurementSystem.METRIC ? 'bg-white dark:bg-white/10 shadow-sm' : 'opacity-50'}`}>CM/KG</button>
+                   <button onClick={() => setMeasurementSystem(MeasurementSystem.IMPERIAL)} className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${measurementSystem === MeasurementSystem.IMPERIAL ? 'bg-white dark:bg-white/10 shadow-sm' : 'opacity-50'}`}>FT/LBS</button>
+                </div>
+             </div>
+          </div>
+       </section>
+
+       <Button variant="secondary" onClick={handleLogout} className="mt-auto mb-6">
+          {t.signOut}
+       </Button>
     </div>
   );
 };
 
-// --- Settings View ---
-const SettingsView = ({ t, user, handleLogout, language, setLanguage, theme, setTheme, onProfileClick, userAvatar, currency, setCurrency, wageFrequency, setWageFrequency, measurementSystem, setMeasurementSystem }: any) => {
-  const [step, setStep] = useState(0); 
-  const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
-  const [csvPreview, setCsvPreview] = useState<any[]>([]);
-  const [parsedRows, setParsedRows] = useState<any[]>([]);
-  const [startRowIndex, setStartRowIndex] = useState<number>(0);
-  const [importTeams, setImportTeams] = useState<boolean>(true);
-  const [uploadStatus, setUploadStatus] = useState<string>('');
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+const ProfileView = ({ t, user, goBack, userAvatar }: any) => {
+  const [displayName, setDisplayName] = useState(user.displayName || '');
+  const [loading, setLoading] = useState(false);
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target?.result as string;
-      if (!text) return;
-      const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
-      if (lines.length < 2) { setUploadStatus("File is empty or invalid."); return; }
-      
-      const firstLine = lines[0];
-      const commaCount = (firstLine.match(/,/g) || []).length;
-      const semiCount = (firstLine.match(/;/g) || []).length;
-      const delimiter = semiCount > commaCount ? ';' : ',';
-
-      const headers = parseCSVRow(firstLine, delimiter).map(h => h.trim());
-      const dataRows = lines.slice(1).map(line => {
-        const values = parseCSVRow(line, delimiter);
-        const obj: any = {};
-        headers.forEach((h, i) => {
-          if (h && h !== "") {
-            let val: any = values[i] || "";
-            if (typeof val === 'string') val = val.trim();
-            if (NUMBER_FIELDS.has(h.toLowerCase())) {
-              const num = parseFloat(val);
-              val = isNaN(num) ? 0 : num;
-            }
-            obj[h.toLowerCase()] = val;
-          }
-        });
-        return obj;
-      });
-
-      setCsvHeaders(headers);
-      setParsedRows(dataRows);
-      setCsvPreview(dataRows.slice(0, 3));
-      setStep(1);
-      setUploadStatus(`Detected ${delimiter === ';' ? 'semicolon' : 'comma'} delimiter. Loaded ${dataRows.length} rows.`);
-    };
-    reader.readAsText(file);
-  };
-
-  const handleStartImport = async () => {
-    setStep(2);
-    setUploadProgress(0);
-    setUploadStatus("Initializing...");
-
+  const handleUpdateProfile = async () => {
+    setLoading(true);
     try {
-      if (importTeams && startRowIndex === 0) {
-        const uniqueTeams = new Map();
-        parsedRows.forEach(row => {
-          const teamName = row['team'] || row['squadra'] || row['club']; 
-          const leagueName = row['league'] || row['campionato'] || row['division'];
-          if (teamName && !uniqueTeams.has(teamName)) {
-             uniqueTeams.set(teamName, {
-               name: teamName,
-               league: leagueName || 'Unknown',
-               updatedAt: new Date().toISOString()
-             });
-          }
-        });
-
-        const teamsArray = Array.from(uniqueTeams.values());
-        setUploadStatus(`Found ${teamsArray.length} unique teams. Uploading teams...`);
-
-        const batchSize = 250; 
-        let totalBatches = Math.ceil(teamsArray.length / batchSize);
-        
-        for (let i = 0; i < totalBatches; i++) {
-          const batch = writeBatch(db);
-          const chunk = teamsArray.slice(i * batchSize, (i + 1) * batchSize);
-          chunk.forEach(team => {
-            const docId = String(team.name).replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
-            const docRef = doc(db, 'teams', docId);
-            batch.set(docRef, team);
-          });
-          await batch.commit();
-          await new Promise(r => setTimeout(r, 1000));
-          setUploadProgress(Math.round(((i + 1) / totalBatches) * 20));
-        }
+      if (displayName !== user.displayName) {
+        await updateProfile(user, { displayName });
       }
-
-      const playersToUpload = parsedRows.slice(startRowIndex);
-      setUploadStatus(`Uploading ${playersToUpload.length} players starting from index ${startRowIndex}...`);
-      
-      const batchSize = 200; 
-      let totalBatches = Math.ceil(playersToUpload.length / batchSize);
-
-      for (let i = 0; i < totalBatches; i++) {
-        const batch = writeBatch(db);
-        const chunk = playersToUpload.slice(i * batchSize, (i + 1) * batchSize);
-        chunk.forEach(player => {
-          const teamName = player['team'] || player['squadra'] || player['club'];
-          if (teamName) player.teamId = String(teamName).replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
-          const docRef = doc(collection(db, 'players'));
-          batch.set(docRef, player);
-        });
-        await batch.commit();
-        await new Promise(r => setTimeout(r, 1200)); 
-        const currentBatchProgress = ((i + 1) / totalBatches) * 80;
-        setUploadProgress(20 + Math.round(currentBatchProgress));
-        setUploadStatus(`Uploaded batch ${i+1}/${totalBatches} (${chunk.length} players)...`);
-      }
-
-      setUploadStatus('Import Complete!');
-      setTimeout(() => {
-        setStep(0); setParsedRows([]); setUploadStatus(''); setUploadProgress(0);
-        if (fileInputRef.current) fileInputRef.current.value = '';
-      }, 3000);
-    } catch (err: any) {
-      console.error(err);
-      setUploadStatus("Error: " + err.message);
+    } catch (e) {
+      console.error(e);
+      alert(t.errorGeneric);
+    } finally {
+      setLoading(false);
+      goBack();
     }
   };
 
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+       const file = e.target.files[0];
+       try {
+         const base64 = await compressImage(file);
+         await setDoc(doc(db, 'users', user.uid), {
+            photoBase64: base64,
+            email: user.email
+         }, { merge: true });
+       } catch (err) {
+         console.error(err);
+         alert(t.errorGeneric);
+       }
+    }
+  };
+
+  const handleDeletePhoto = async () => {
+     if(!window.confirm(t.deleteConfirm)) return;
+     try {
+       await updateDoc(doc(db, 'users', user.uid), {
+         photoBase64: null
+       });
+     } catch (err) {
+       console.error(err);
+     }
+  };
+
   return (
-    <div className="px-6 pt-24 pb-32 max-w-md mx-auto w-full animate-fadeIn">
-      <h2 className="text-3xl font-black mb-8">{t.navSettings}</h2>
-      
-      <div onClick={onProfileClick} className="bg-white dark:bg-white/5 rounded-2xl p-4 mb-6 shadow-sm flex items-center gap-4 cursor-pointer hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
-        <div className="w-16 h-16 rounded-full bg-mint flex items-center justify-center text-obsidian text-xl font-bold overflow-hidden">
-          {userAvatar || user.photoURL ? (<img src={userAvatar || user.photoURL} alt="Avatar" className="w-full h-full object-cover" />) : (user.email?.[0].toUpperCase())}
-        </div>
-        <div className="flex-1 overflow-hidden">
-          <h3 className="font-bold text-lg truncate">{user.displayName || user.email?.split('@')[0]}</h3>
-          <p className="text-xs opacity-50 truncate">{user.email}</p>
-        </div>
-        <button className="p-2 text-mint hover:bg-mint/10 rounded-full"><ChevronRightIcon className="w-5 h-5" /></button>
-      </div>
+    <div className="h-full flex flex-col pt-6 px-4 animate-fadeIn bg-ghost dark:bg-obsidian">
+       <div className="flex items-center justify-between mb-8">
+          <button onClick={goBack} className="p-2 rounded-full bg-white dark:bg-white/10 hover:bg-black/5 dark:hover:bg-white/20 transition-colors">
+             <ChevronLeftIcon className="w-6 h-6"/>
+          </button>
+          <h2 className="text-xl font-black">{t.profileTitle}</h2>
+          <div className="w-10"></div>
+       </div>
 
-      <div className="space-y-4">
-        <div className="bg-white dark:bg-white/5 rounded-2xl p-4 shadow-sm">
-          <h4 className="text-xs font-bold uppercase opacity-50 mb-4 tracking-wider flex items-center gap-2"><SunIcon className="w-3 h-3"/> {t.appearance}</h4>
-          <div className="flex justify-between items-center mb-4">
-             <span>Theme</span>
-             <div className="flex bg-obsidian/5 dark:bg-ghost/5 p-1 rounded-full">
-                <ToggleButton active={theme === Theme.LIGHT} onClick={() => setTheme(Theme.LIGHT)}><SunIcon className="w-4 h-4"/></ToggleButton>
-                <ToggleButton active={theme === Theme.AUTO} onClick={() => setTheme(Theme.AUTO)}><ComputerDesktopIcon className="w-4 h-4"/></ToggleButton>
-                <ToggleButton active={theme === Theme.DARK} onClick={() => setTheme(Theme.DARK)}><MoonIcon className="w-4 h-4"/></ToggleButton>
+       <div className="flex flex-col items-center mb-8">
+          <div className="relative group">
+             <div className="w-32 h-32 rounded-full bg-mint flex items-center justify-center overflow-hidden border-4 border-white dark:border-white/10 shadow-2xl">
+                {userAvatar || user.photoURL ? (
+                  <img src={userAvatar || user.photoURL} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <UserCircleIcon className="w-20 h-20 text-obsidian/20"/>
+                )}
              </div>
+             <label className="absolute bottom-0 right-0 bg-obsidian text-white p-2 rounded-full cursor-pointer hover:scale-110 transition-transform shadow-lg">
+                <CameraIcon className="w-5 h-5"/>
+                <input type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} />
+             </label>
           </div>
-          <div className="flex justify-between items-center">
-             <span>{t.language}</span>
-             <div className="flex bg-obsidian/5 dark:bg-ghost/5 p-1 rounded-full gap-1">
-                <ToggleButton active={language === Language.IT} onClick={() => setLanguage(Language.IT)}><span className="text-xs font-bold">IT</span></ToggleButton>
-                <ToggleButton active={language === Language.EN} onClick={() => setLanguage(Language.EN)}><span className="text-xs font-bold">EN</span></ToggleButton>
-             </div>
-          </div>
-        </div>
+          {(userAvatar || user.photoURL) && (
+             <button onClick={handleDeletePhoto} className="mt-4 text-xs font-bold text-red-500 hover:underline">
+               {t.deletePhoto}
+             </button>
+          )}
+       </div>
 
-        <div className="bg-white dark:bg-white/5 rounded-2xl p-4 shadow-sm">
-          <h4 className="text-xs font-bold uppercase opacity-50 mb-4 tracking-wider flex items-center gap-2"><CurrencyDollarIcon className="w-3 h-3"/> {t.preferences}</h4>
-          <div className="flex justify-between items-center mb-4">
-             <span className="text-sm">{t.currency}</span>
-             <div className="flex bg-obsidian/5 dark:bg-ghost/5 p-1 rounded-full gap-1">
-                {Object.values(Currency).map((cur) => (<ToggleButton key={cur} active={currency === cur} onClick={() => setCurrency(cur)}><span className="text-xs font-bold">{cur}</span></ToggleButton>))}
-             </div>
+       <div className="bg-white dark:bg-white/5 rounded-2xl p-6 shadow-sm mb-6">
+          <div className="mb-4">
+             <label className="block text-xs font-bold opacity-50 mb-1 uppercase tracking-wider">{t.email}</label>
+             <div className="font-medium opacity-70">{user.email}</div>
           </div>
-          <div className="flex justify-between items-center mb-4">
-             <span className="text-sm">{t.wageFrequency}</span>
-             <div className="flex bg-obsidian/5 dark:bg-ghost/5 p-1 rounded-full gap-1">
-                <ToggleButton active={wageFrequency === WageFrequency.WEEKLY} onClick={() => setWageFrequency(WageFrequency.WEEKLY)}><span className="text-xs font-bold px-1">{t.weekly}</span></ToggleButton>
-                <ToggleButton active={wageFrequency === WageFrequency.YEARLY} onClick={() => setWageFrequency(WageFrequency.YEARLY)}><span className="text-xs font-bold px-1">{t.yearly}</span></ToggleButton>
-             </div>
+          <div className="mb-2">
+             <label className="block text-xs font-bold opacity-50 mb-1 uppercase tracking-wider">{t.nickname}</label>
+             <input 
+               value={displayName}
+               onChange={(e) => setDisplayName(e.target.value)}
+               className="w-full bg-black/5 dark:bg-white/5 rounded-lg px-4 py-3 outline-none focus:ring-2 ring-mint font-bold text-lg"
+               placeholder="Manager Name"
+             />
           </div>
-          <div className="flex flex-col gap-2">
-             <span className="text-sm">{t.measurements}</span>
-             <div className="flex bg-obsidian/5 dark:bg-ghost/5 p-1 rounded-full w-full">
-                <ToggleButton className="flex-1" active={measurementSystem === MeasurementSystem.METRIC} onClick={() => setMeasurementSystem(MeasurementSystem.METRIC)}><span className="text-xs font-bold">{t.metric}</span></ToggleButton>
-                <ToggleButton className="flex-1" active={measurementSystem === MeasurementSystem.IMPERIAL} onClick={() => setMeasurementSystem(MeasurementSystem.IMPERIAL)}><span className="text-xs font-bold">{t.imperial}</span></ToggleButton>
-             </div>
-          </div>
-        </div>
+       </div>
 
-         <div className="bg-obsidian/5 dark:bg-ghost/5 border-2 border-dashed border-mint/30 rounded-2xl p-4 shadow-sm mt-8">
-          <h4 className="text-xs font-bold uppercase text-mint mb-4 tracking-wider flex items-center gap-2"><CloudArrowUpIcon className="w-4 h-4"/> Smart CSV Importer</h4>
-          <div className="text-sm opacity-70 mb-4">Auto-maps columns and manages write quotas.</div>
-          {step === 0 && (
-            <div className="relative">
-              <input type="file" ref={fileInputRef} accept=".csv" onChange={handleFileSelect} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"/>
-              <div className="w-full py-4 bg-white dark:bg-obsidian border border-obsidian/10 dark:border-ghost/10 rounded-lg flex flex-col items-center justify-center gap-2 hover:border-mint transition-colors cursor-pointer">
-                 <DocumentTextIcon className="w-8 h-8 opacity-50" />
-                 <span className="text-sm font-medium">Select CSV File</span>
-              </div>
-            </div>
-          )}
-          {step === 1 && (
-             <div className="space-y-4 animate-fadeIn">
-                <div className="text-xs text-mint font-mono flex items-center gap-2"><CheckCircleIcon className="w-4 h-4" /> {uploadStatus}</div>
-                <div className="bg-black/10 dark:bg-white/10 p-2 rounded text-[10px] font-mono overflow-x-auto">
-                  <p className="font-bold mb-1 text-mint">Preview:</p>
-                  {csvPreview.length > 0 && (
-                     <div className="grid grid-cols-2 gap-1">
-                       <div>Name: <span className="opacity-70">{csvPreview[0].name}</span></div>
-                       <div>Team: <span className="opacity-70">{csvPreview[0].team}</span></div>
-                     </div>
-                  )}
-                </div>
-                <div className="bg-white/5 rounded-lg p-3 space-y-3">
-                   <div className="flex items-center justify-between text-sm">
-                      <label className="opacity-80">Import Teams?</label>
-                      <input type="checkbox" checked={importTeams} onChange={(e) => setImportTeams(e.target.checked)} className="accent-mint w-4 h-4"/>
-                   </div>
-                   <div className="flex items-center justify-between text-sm">
-                      <label className="opacity-80">Start from Row (Index)</label>
-                      <input type="number" value={startRowIndex} onChange={(e) => setStartRowIndex(Number(e.target.value))} className="bg-black/10 dark:bg-white/10 rounded px-2 py-1 w-20 text-right outline-none focus:ring-1 ring-mint"/>
-                   </div>
-                   <p className="text-[10px] opacity-50 leading-tight">Use "Start from Row" if previous upload failed due to quota.</p>
-                </div>
-                <div className="flex gap-2 pt-2">
-                   <Button variant="ghost" onClick={() => { setStep(0); setParsedRows([]); }} className="!py-2 text-sm">Cancel</Button>
-                   <Button variant="primary" onClick={handleStartImport} className="!py-2 text-sm">Start Import</Button>
-                </div>
-             </div>
-          )}
-          {step === 2 && (
-            <div className="space-y-3 animate-fadeIn">
-               <div className="flex justify-between text-xs font-mono"><span className="truncate max-w-[70%]">{uploadStatus}</span><span>{uploadProgress}%</span></div>
-               <div className="w-full h-2 bg-obsidian/10 dark:bg-ghost/10 rounded-full overflow-hidden">
-                  <div className="h-full bg-mint transition-all duration-300 relative overflow-hidden" style={{ width: `${uploadProgress}%` }}><div className="absolute inset-0 bg-white/20 animate-pulse"></div></div>
-               </div>
-               <div className="flex justify-center pt-2"><ArrowPathIcon className="w-5 h-5 animate-spin opacity-50" /></div>
-            </div>
-          )}
-          {uploadStatus === 'Import Complete!' && (
-             <div className="mt-4 p-3 bg-mint/10 rounded-lg text-center text-mint text-sm font-bold flex items-center justify-center gap-2"><CheckCircleIcon className="w-5 h-5" /> All Data Imported!</div>
-          )}
-        </div>
-      </div>
-      <div className="mt-8"><Button variant="secondary" onClick={handleLogout}>{t.signOut}</Button></div>
+       <div className="mt-auto mb-6 flex gap-4">
+          <Button variant="ghost" onClick={goBack}>{t.cancel}</Button>
+          <Button onClick={handleUpdateProfile} disabled={loading}>
+            {loading ? <ArrowPathIcon className="w-5 h-5 animate-spin"/> : t.save}
+          </Button>
+       </div>
     </div>
   );
 };
