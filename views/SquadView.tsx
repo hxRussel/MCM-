@@ -9,7 +9,7 @@ import {
   PhotoIcon, 
   DocumentTextIcon, 
   CameraIcon, 
-  CheckCircleIcon 
+  CheckCircleIcon
 } from '@heroicons/react/24/outline';
 import { GoogleGenAI } from "@google/genai";
 import { Career, Player } from '../types';
@@ -34,7 +34,7 @@ const PlayerCard: React.FC<{ player: Player; onEdit: () => void; onDelete: () =>
            <span>• {player.age}yo</span>
         </div>
       </div>
-      <div className="flex gap-1 sm:gap-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="flex gap-2 shrink-0">
         <button 
           onClick={(e) => { e.stopPropagation(); onEdit(); }} 
           className="p-2 rounded-full bg-obsidian/5 dark:bg-ghost/5 hover:bg-mint hover:text-obsidian transition-colors"
@@ -71,6 +71,13 @@ const EditPlayerModal = ({ isOpen, onClose, player, onSave, t }: any) => {
 
   if (!isOpen || !formData) return null;
 
+  const roleOptions = [
+    { label: 'POR', value: 'GK', class: 'bg-yellow-500/20 text-yellow-600 border-yellow-500/50' },
+    { label: 'DIF', value: 'DEF', class: 'bg-blue-500/20 text-blue-600 border-blue-500/50' },
+    { label: 'CEN', value: 'MID', class: 'bg-green-500/20 text-green-600 border-green-500/50' },
+    { label: 'ATT', value: 'FWD', class: 'bg-red-500/20 text-red-600 border-red-500/50' },
+  ];
+
   return (
     <div className="fixed inset-0 z-[75] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
       <GlassCard className="w-full max-w-md p-6 space-y-5">
@@ -86,7 +93,7 @@ const EditPlayerModal = ({ isOpen, onClose, player, onSave, t }: any) => {
            onChange={(e) => handleChange('name', e.target.value)} 
         />
         
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 gap-4">
            <div>
              <label className="block text-sm font-medium mb-1 opacity-80">Age</label>
              <input 
@@ -105,14 +112,32 @@ const EditPlayerModal = ({ isOpen, onClose, player, onSave, t }: any) => {
                className="w-full px-4 py-3 rounded-lg bg-white/5 border border-obsidian/10 dark:border-ghost/20 focus:border-mint focus:ring-2 focus:ring-mint/50 outline-none text-center font-mono font-bold"
              />
            </div>
-           <div>
-             <label className="block text-sm font-medium mb-1 opacity-80">Pos</label>
-             <input 
-               type="text" 
-               value={formData.position} 
-               onChange={(e) => handleChange('position', e.target.value.toUpperCase())}
-               className="w-full px-4 py-3 rounded-lg bg-white/5 border border-obsidian/10 dark:border-ghost/20 focus:border-mint focus:ring-2 focus:ring-mint/50 outline-none text-center font-mono"
-             />
+        </div>
+
+        <div>
+           <label className="block text-sm font-medium mb-2 opacity-80">Ruolo / Position</label>
+           <div className="grid grid-cols-4 gap-2">
+              {roleOptions.map((role) => {
+                 // Check if current position matches this role category (simple check)
+                 const isActive = 
+                    (role.value === 'GK' && ['GK', 'POR', 'P'].includes(formData.position)) ||
+                    (role.value === 'DEF' && ['DEF', 'CB', 'LB', 'RB', 'LWB', 'RWB', 'D', 'DC', 'TS', 'TD'].includes(formData.position)) ||
+                    (role.value === 'MID' && ['MID', 'CM', 'CDM', 'CAM', 'LM', 'RM', 'C', 'CC', 'MED'].includes(formData.position)) ||
+                    (role.value === 'FWD' && ['FWD', 'ST', 'CF', 'LW', 'RW', 'A', 'ATT', 'AS', 'AD'].includes(formData.position));
+                 
+                 return (
+                  <button
+                    key={role.value}
+                    onClick={() => handleChange('position', role.value)}
+                    className={`
+                      py-3 rounded-xl font-black text-sm border-2 transition-all
+                      ${isActive ? role.class + ' scale-105 shadow-lg' : 'bg-black/5 dark:bg-white/5 border-transparent opacity-50 hover:opacity-100'}
+                    `}
+                  >
+                    {role.label}
+                  </button>
+                 );
+              })}
            </div>
         </div>
 
@@ -134,7 +159,6 @@ const ImportSquadModal = ({ isOpen, onClose, onImport, t }: any) => {
 
   // Gemini AI Logic
   const analyzeData = async (content: any, type: 'text' | 'image') => {
-    // 1. Check if API Key exists
     if (!process.env.API_KEY) {
       alert("API Key is missing! You must add 'API_KEY' to your Vercel Environment Variables.");
       return;
@@ -146,33 +170,39 @@ const ImportSquadModal = ({ isOpen, onClose, onImport, t }: any) => {
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       
-      // 2. Strict OCR System Prompt
       const systemPrompt = `
-        ROLE: You are an Optical Character Recognition (OCR) engine. 
-        TASK: Transcribe the text from the image perfectly.
+        ROLE: You are a smart Football Manager Assistant OCR.
+        TASK: Extract player data from the provided image or text.
+
+        CRITICAL INSTRUCTIONS FOR NUMBERS:
+        - **Kit Number**: Usually strictly on the LEFT or RIGHT margin. IGNORE numbers 1-99 if they are isolated.
+        - **Overall (OVR)**: The most important number. Usually 55-99. 
+        - **Age**: Usually 16-45.
+        - RULE: If you see "9" (Kit) and "82" (OVR), use 82.
+        - RULE: If you see "19" (Age) and "70" (OVR), use 70 for OVR.
+
+        CRITICAL INSTRUCTIONS FOR POSITIONS (NORMALIZATION):
+        You must convert specific roles to these 4 generic categories if specific EN ones aren't clear.
         
-        STRICT RULES:
-        1. READ ONLY THE PIXELS IN THE IMAGE. 
-        2. DO NOT USE YOUR INTERNAL KNOWLEDGE. If the image says "Edin Dzeko", write "Edin Dzeko". If it says "Mario Rossi", write "Mario Rossi".
-        3. DO NOT HALLUCINATE players that are not visible.
-        4. If you cannot read the text because it is blurry, return an empty array. Do not guess.
-        
-        EXTRACTION GOAL:
-        Extract a JSON array of players. For each player row in the image, extract:
-        - name (String)
-        - position (String, e.g., ST, CB, GK)
-        - overall (Number, 0-99) - Look for a number usually in a colored badge or column.
-        - age (Number, 15-50)
-        
-        FALLBACKS:
-        - If 'overall' is not visible, default to 75.
-        - If 'age' is not visible, default to 25.
-        - If 'position' is not visible, default to 'CM'.
-        
-        JSON FORMAT:
-        [{"name": "Name found in pixels", "position": "ST", "overall": 82, "age": 29}]
-        
-        Return ONLY the JSON array string. No markdown, no explanations.
+        1. **GOALKEEPER (GK)**:
+           - Input: P, POR, GK
+           - Output: GK
+
+        2. **DEFENDER (DEF)**:
+           - Input: D, DC, DIF, TS, TD, Terzino, ADA, ASA, LB, RB, CB, LWB, RWB
+           - Output: DEF (or CB, LB, RB if sure)
+
+        3. **MIDFIELDER (MID)**:
+           - Input: C, CC, CEN, MED, CDC, COC, ES, ED, Mezzala, CM, CDM, CAM, LM, RM
+           - Output: MID (or CM, CDM, CAM if sure)
+
+        4. **FORWARD (FWD)**:
+           - Input: A, AT, ATT, AS, AD, Punta, ST, CF, LW, RW
+           - Output: FWD (or ST, LW, RW if sure)
+
+        OUTPUT FORMAT:
+        Return ONLY a JSON array. 
+        [{"name": "Player Name", "position": "FWD", "overall": 82, "age": 29}]
       `;
 
       let responseText: string | undefined;
@@ -184,7 +214,6 @@ const ImportSquadModal = ({ isOpen, onClose, onImport, t }: any) => {
         });
         responseText = result.text;
       } else {
-        // Image handling
          const result = await ai.models.generateContent({
             model: "gemini-2.5-flash",
             contents: {
@@ -203,10 +232,8 @@ const ImportSquadModal = ({ isOpen, onClose, onImport, t }: any) => {
       }
 
       const rawText = responseText || "";
-      console.log("Gemini Raw Response:", rawText); // For debugging
+      console.log("Gemini Raw Response:", rawText);
 
-      // Robust JSON Extraction
-      // Find the first '[' and the last ']'
       const jsonMatch = rawText.match(/\[.*\]/s);
       const cleanJson = jsonMatch ? jsonMatch[0] : "[]";
       
@@ -215,20 +242,18 @@ const ImportSquadModal = ({ isOpen, onClose, onImport, t }: any) => {
         players = JSON.parse(cleanJson);
       } catch (jsonError) {
         console.error("Failed to parse extracted JSON", cleanJson);
-        // Fallback: Try to find loose JSON objects if array parse fails
       }
 
       if (!Array.isArray(players)) {
         players = [];
       }
 
-      // Add IDs and defaults
       const formattedPlayers = players.map((p: any) => ({
         id: 'imported-' + Date.now() + Math.random(),
         name: p.name || 'Unknown',
-        age: (typeof p.age === 'number' && p.age > 10) ? p.age : 25,
-        overall: (typeof p.overall === 'number' && p.overall > 40) ? p.overall : 75,
-        position: p.position || 'CM',
+        age: (typeof p.age === 'number' && p.age > 12) ? p.age : 25,
+        overall: (typeof p.overall === 'number' && p.overall > 45) ? p.overall : 70,
+        position: p.position ? p.position.toUpperCase() : 'MID',
         nationality: 'Unknown', 
         value: 1000000,
         wage: 5000,
@@ -244,7 +269,7 @@ const ImportSquadModal = ({ isOpen, onClose, onImport, t }: any) => {
 
     } catch (e) {
       console.error("AI Error", e);
-      alert(t.errorGeneric + " Check console for details.");
+      alert(t.errorGeneric);
     } finally {
       setIsLoading(false);
     }
@@ -252,7 +277,7 @@ const ImportSquadModal = ({ isOpen, onClose, onImport, t }: any) => {
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.[0]) {
-      // Use HIGH RESOLUTION (2048px) for OCR, not 300px
+      // Use 2048px for better OCR text recognition
       const base64 = await compressImage(e.target.files[0], 2048, 2048);
       analyzeData(base64, 'image');
     }
@@ -283,7 +308,6 @@ const ImportSquadModal = ({ isOpen, onClose, onImport, t }: any) => {
            
            {previewPlayers.length === 0 ? (
              <div className="space-y-6">
-                {/* Tabs */}
                 <div className="flex gap-2 p-1 bg-black/5 dark:bg-white/5 rounded-xl">
                   <button 
                     onClick={() => setActiveTab('image')}
@@ -335,9 +359,12 @@ const ImportSquadModal = ({ isOpen, onClose, onImport, t }: any) => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {previewPlayers.map(p => (
                     <div key={p.id} className="flex items-center gap-3 p-3 rounded-xl bg-black/5 dark:bg-white/5 border border-transparent">
-                       <span className="font-mono text-xs font-bold bg-white dark:bg-black px-1.5 py-0.5 rounded">{p.position}</span>
+                       <span className="font-mono text-xs font-bold bg-white dark:bg-black px-1.5 py-0.5 rounded w-10 text-center">{p.position}</span>
                        <span className="flex-1 font-bold text-sm truncate">{p.name}</span>
-                       <span className="text-xs font-bold bg-mint text-obsidian px-1.5 rounded">{p.overall}</span>
+                       <div className="flex gap-1">
+                          <span className="text-xs font-bold bg-mint text-obsidian px-1.5 rounded">{p.overall}</span>
+                          <span className="text-xs font-bold bg-obsidian/10 dark:bg-ghost/10 px-1.5 rounded">{p.age}yo</span>
+                       </div>
                     </div>
                   ))}
                 </div>
@@ -367,7 +394,6 @@ export const SquadView = ({ t, career, onUpdateCareer }: { t: any, career: Caree
   const [deletingPlayerId, setDeletingPlayerId] = useState<string | null>(null);
   
   const handleImport = (newPlayers: Player[]) => {
-    // Append to existing
     const updatedPlayers = [...career.players, ...newPlayers];
     onUpdateCareer({ ...career, players: updatedPlayers });
     setImportModalOpen(false);
@@ -389,12 +415,22 @@ export const SquadView = ({ t, career, onUpdateCareer }: { t: any, career: Caree
     }
   };
 
-  // Group players
+  // Improved Player Categorization Logic
+  const categorizePlayer = (pos: string) => {
+    const p = pos.toUpperCase().trim();
+    if (['GK', 'POR', 'P'].includes(p)) return 'GK';
+    if (['CB', 'LB', 'RB', 'LWB', 'RWB', 'DC', 'TS', 'TD', 'D', 'DEF'].includes(p)) return 'DEF';
+    if (['CM', 'CDM', 'CAM', 'LM', 'RM', 'CC', 'CDC', 'COC', 'C', 'MID', 'CEN', 'MED'].includes(p)) return 'MID';
+    if (['ST', 'CF', 'LW', 'RW', 'ATT', 'A', 'AT', 'AS', 'AD', 'FWD'].includes(p)) return 'FWD';
+    return 'OTHER';
+  };
+
   const sections = {
-    [t.positionGK]: career.players.filter(p => p.position === 'GK'),
-    [t.positionDEF]: career.players.filter(p => ['CB','LB','RB','LWB','RWB'].includes(p.position)),
-    [t.positionMID]: career.players.filter(p => ['CM','CDM','CAM','LM','RM'].includes(p.position)),
-    [t.positionFWD]: career.players.filter(p => ['ST','CF','LW','RW'].includes(p.position)),
+    [t.positionGK]: career.players.filter(p => categorizePlayer(p.position) === 'GK'),
+    [t.positionDEF]: career.players.filter(p => categorizePlayer(p.position) === 'DEF'),
+    [t.positionMID]: career.players.filter(p => categorizePlayer(p.position) === 'MID'),
+    [t.positionFWD]: career.players.filter(p => categorizePlayer(p.position) === 'FWD'),
+    "Others / Unassigned": career.players.filter(p => categorizePlayer(p.position) === 'OTHER'),
   };
 
   return (
