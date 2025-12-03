@@ -23,9 +23,19 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     secureAccess: "Secure Access",
     newCareer: "New Career",
 
-    // Rework
-    workInProgress: "Work In Progress",
-    reworkMessage: "The dashboard is currently under construction for a complete rework.",
+    // Dashboard
+    hello: "Hello",
+    searchPlaceholder: "Search players, teams...",
+    continueCareer: "Continue Career",
+
+    // Nav
+    navHome: "Home",
+    navSquad: "Squad",
+    navMarket: "Market",
+    navSettings: "Settings",
+
+    // App
+    workInProgress: "Work in Progress"
   },
   [Language.IT]: {
     welcome: "Benvenuto su MCM+",
@@ -48,8 +58,18 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     secureAccess: "Accesso Sicuro",
     newCareer: "Nuova Carriera",
 
-    // Rework
-    workInProgress: "Lavori in Corso",
-    reworkMessage: "La dashboard è attualmente in costruzione per un rework completo.",
+    // Dashboard
+    hello: "Ciao",
+    searchPlaceholder: "Cerca giocatori, squadre...",
+    continueCareer: "Continua Carriera",
+
+    // Nav
+    navHome: "Home",
+    navSquad: "Rosa",
+    navMarket: "Mercato",
+    navSettings: "Impostazioni",
+
+    // App
+    workInProgress: "Lavori in corso"
   }
 };

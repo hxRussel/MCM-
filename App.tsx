@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   createUserWithEmailAndPassword, 
@@ -8,7 +7,7 @@ import {
   User 
 } from 'firebase/auth';
 import { auth } from './services/firebase';
-import { Language, Theme } from './types';
+import { Language, Theme, View } from './types';
 import { TRANSLATIONS } from './constants';
 import { 
   SunIcon, 
@@ -17,8 +16,24 @@ import {
   ExclamationCircleIcon,
   EyeIcon,
   EyeSlashIcon,
-  CommandLineIcon
+  CommandLineIcon,
+  HomeIcon,
+  UserGroupIcon,
+  CurrencyDollarIcon,
+  Cog6ToothIcon,
+  MagnifyingGlassIcon,
+  AdjustmentsHorizontalIcon,
+  UserCircleIcon,
+  ArrowRightIcon,
+  HeartIcon
 } from '@heroicons/react/24/outline';
+import { 
+  HomeIcon as HomeSolid,
+  UserGroupIcon as UserGroupSolid, 
+  CurrencyDollarIcon as CurrencyDollarSolid, 
+  Cog6ToothIcon as CogSolid,
+  HeartIcon as HeartSolid
+} from '@heroicons/react/24/solid';
 
 // --- Shared UI Components ---
 
@@ -121,6 +136,154 @@ const ToggleButton = ({ active, onClick, children, title, className = '' }: any)
   </button>
 );
 
+// --- Dashboard Components ---
+
+const GlassCard = ({ children, className = '', onClick }: { children?: React.ReactNode, className?: string, onClick?: () => void }) => (
+  <div 
+    onClick={onClick}
+    className={`
+      bg-white/80 dark:bg-black/40 backdrop-blur-xl 
+      border border-white/40 dark:border-white/5 
+      shadow-xl shadow-black/5 dark:shadow-black/20
+      rounded-3xl overflow-hidden
+      ${className}
+    `}
+  >
+    {children}
+  </div>
+);
+
+const NavItem = ({ icon: Icon, solidIcon: SolidIcon, label, active, onClick }: any) => (
+  <button 
+    onClick={onClick}
+    className={`
+      flex flex-col items-center justify-center w-12 h-12 rounded-full transition-all duration-300
+      ${active ? 'bg-obsidian dark:bg-ghost text-ghost dark:text-obsidian scale-110 shadow-lg' : 'text-obsidian/50 dark:text-ghost/50 hover:text-obsidian dark:hover:text-ghost'}
+    `}
+  >
+    {active ? <SolidIcon className="w-6 h-6" /> : <Icon className="w-6 h-6" />}
+  </button>
+);
+
+const Chip = ({ label, active }: { label: string, active?: boolean }) => (
+  <button className={`
+    px-6 py-2.5 rounded-full text-sm font-medium transition-all duration-300 whitespace-nowrap
+    ${active 
+      ? 'bg-obsidian dark:bg-ghost text-ghost dark:text-obsidian shadow-lg' 
+      : 'bg-white/50 dark:bg-white/5 text-obsidian dark:text-ghost hover:bg-white/80 dark:hover:bg-white/10'}
+  `}>
+    {label}
+  </button>
+);
+
+// --- Views ---
+
+const HomeView = ({ t }: { t: any }) => {
+  return (
+    <div className="space-y-6 animate-fade-in">
+      {/* Search Bar */}
+      <div className="relative">
+        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+          <MagnifyingGlassIcon className="h-5 w-5 text-obsidian/40 dark:text-ghost/40" />
+        </div>
+        <input
+          type="text"
+          placeholder={t.searchPlaceholder}
+          className="w-full pl-11 pr-12 py-4 rounded-full bg-white/50 dark:bg-white/5 border border-white/20 dark:border-white/5 backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-mint/50 transition-all text-obsidian dark:text-ghost placeholder-obsidian/40 dark:placeholder-ghost/40 shadow-sm"
+        />
+        <div className="absolute inset-y-0 right-0 pr-2 flex items-center">
+           <button className="p-2 rounded-full bg-obsidian text-ghost dark:bg-ghost dark:text-obsidian hover:scale-105 transition-transform">
+             <AdjustmentsHorizontalIcon className="h-5 w-5" />
+           </button>
+        </div>
+      </div>
+
+      {/* Categories */}
+      <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+        <Chip label="All Careers" active />
+        <Chip label="Premier League" />
+        <Chip label="Serie A" />
+        <Chip label="La Liga" />
+      </div>
+
+      {/* Active Career Hero Card */}
+      <div>
+        <h3 className="text-xl font-bold mb-4 px-1">{t.continueCareer}</h3>
+        <GlassCard className="relative h-[400px] group cursor-pointer transition-transform duration-300 active:scale-95">
+           {/* Background Image Placeholder */}
+           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/90 z-10"></div>
+           <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center transition-transform duration-700 group-hover:scale-105"></div>
+           
+           <div className="absolute top-4 right-4 z-20">
+             <button className="p-2 rounded-full bg-white/10 backdrop-blur-md text-white hover:bg-white/20 transition-colors">
+               <HeartIcon className="w-6 h-6" />
+             </button>
+           </div>
+
+           <div className="absolute bottom-0 left-0 w-full p-6 z-20 text-white">
+             <span className="text-mint font-bold text-sm tracking-wider uppercase mb-1 block">Season 2025/26</span>
+             <h2 className="text-4xl font-black mb-1">Real Madrid</h2>
+             <div className="flex items-center gap-2 mb-4 opacity-80">
+                <span className="text-sm">Carlo Ancelotti</span>
+                <span className="w-1 h-1 rounded-full bg-white"></span>
+                <span className="text-sm flex items-center gap-1">
+                   <span className="text-yellow-400">★</span> 92 OVR
+                </span>
+             </div>
+             
+             <div className="flex items-center justify-between">
+               <button className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-6 py-3 rounded-full text-sm font-semibold transition-all w-full mr-3">
+                 See details
+               </button>
+               <button className="bg-mint text-obsidian p-3 rounded-full hover:bg-mint-hover transition-colors shadow-lg shadow-mint/20">
+                 <ArrowRightIcon className="w-5 h-5" />
+               </button>
+             </div>
+           </div>
+        </GlassCard>
+      </div>
+
+      {/* Quick Stats Grid Placeholder */}
+      <div className="grid grid-cols-2 gap-4">
+        <GlassCard className="p-4 flex flex-col justify-between h-32">
+           <div className="p-2 bg-blue-500/10 rounded-full w-fit text-blue-500"><UserGroupSolid className="w-5 h-5"/></div>
+           <div>
+             <span className="text-2xl font-bold block">28</span>
+             <span className="text-xs opacity-60">Players</span>
+           </div>
+        </GlassCard>
+        <GlassCard className="p-4 flex flex-col justify-between h-32">
+           <div className="p-2 bg-green-500/10 rounded-full w-fit text-green-500"><CurrencyDollarSolid className="w-5 h-5"/></div>
+           <div>
+             <span className="text-2xl font-bold block">€120M</span>
+             <span className="text-xs opacity-60">Budget</span>
+           </div>
+        </GlassCard>
+      </div>
+    </div>
+  );
+};
+
+const ProfileView = ({ user, handleLogout, t }: any) => (
+  <div className="animate-fade-in flex flex-col items-center justify-center h-full pt-20">
+    <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-mint to-blue-500 mb-6 flex items-center justify-center text-3xl font-bold text-white shadow-xl">
+      {user?.email?.charAt(0).toUpperCase()}
+    </div>
+    <h2 className="text-2xl font-bold mb-1">{user?.displayName || 'Manager'}</h2>
+    <p className="opacity-50 mb-8">{user?.email}</p>
+    
+    <GlassCard className="w-full max-w-sm p-4 space-y-2">
+      <Button variant="ghost" className="justify-start gap-3">
+        <CogSolid className="w-5 h-5" /> Account Settings
+      </Button>
+      <div className="h-px bg-obsidian/5 dark:bg-ghost/5"></div>
+      <Button variant="danger" onClick={handleLogout} className="justify-start gap-3">
+         Sign Out
+      </Button>
+    </GlassCard>
+  </div>
+);
+
 // --- Main App ---
 
 export default function App() {
@@ -131,6 +294,9 @@ export default function App() {
   const [language, setLanguage] = useState<Language>(Language.IT);
   const [theme, setTheme] = useState<Theme>(Theme.AUTO);
   const t = useMemo(() => TRANSLATIONS[language], [language]);
+
+  // View State
+  const [currentView, setCurrentView] = useState<View>(View.HOME);
 
   // Auth Form State
   const [isLogin, setIsLogin] = useState(true);
@@ -220,22 +386,86 @@ export default function App() {
     );
   }
 
-  // --- Authenticated View (Blank Canvas for Rework) ---
+  // --- Authenticated Dashboard ---
   if (user) {
     return (
-      <div className="min-h-screen bg-ghost dark:bg-obsidian text-obsidian dark:text-ghost flex flex-col items-center justify-center">
-        <div className="text-center p-8">
-           <h1 className="text-4xl font-black mb-4">{t.workInProgress}</h1>
-           <p className="opacity-60 mb-8">{t.reworkMessage}</p>
-           <Button onClick={handleLogout} variant="secondary" className="max-w-xs mx-auto">
-             {t.signOut}
-           </Button>
+      <div className="min-h-screen bg-ghost dark:bg-obsidian text-obsidian dark:text-ghost relative overflow-x-hidden font-sans">
+        
+        {/* Background Gradients */}
+        <div className="fixed top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
+          <div className="absolute top-[-10%] right-[-20%] w-[500px] h-[500px] bg-mint/5 dark:bg-mint/5 rounded-full blur-3xl opacity-50"></div>
+          <div className="absolute bottom-[-10%] left-[-20%] w-[400px] h-[400px] bg-blue-500/5 dark:bg-blue-500/5 rounded-full blur-3xl opacity-30"></div>
         </div>
+
+        {/* Top Header */}
+        <div className="fixed top-0 left-0 w-full z-40 px-6 pt-6 pb-2 bg-gradient-to-b from-ghost via-ghost/90 to-transparent dark:from-obsidian dark:via-obsidian/90">
+           <div className="flex justify-between items-center">
+              <div>
+                <p className="text-sm opacity-60 font-medium">{t.hello},</p>
+                <h1 className="text-2xl font-black tracking-tight">{user.displayName || 'Manager'}</h1>
+              </div>
+              <button onClick={() => setCurrentView(View.PROFILE)} className="relative group">
+                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 p-0.5 shadow-md group-hover:scale-105 transition-transform">
+                   {/* Placeholder Avatar */}
+                   <img 
+                      src={`https://ui-avatars.com/api/?name=${user.email}&background=0D8ABC&color=fff`} 
+                      alt="Profile" 
+                      className="w-full h-full rounded-full object-cover"
+                   />
+                 </div>
+              </button>
+           </div>
+        </div>
+
+        {/* Main Scrollable Content */}
+        <main className="pt-24 pb-32 px-6 min-h-screen">
+          {currentView === View.HOME && <HomeView t={t} />}
+          {currentView === View.PROFILE && <ProfileView user={user} handleLogout={handleLogout} t={t} />}
+          
+          {/* Placeholder for other views */}
+          {(currentView !== View.HOME && currentView !== View.PROFILE) && (
+            <div className="flex flex-col items-center justify-center h-[60vh] opacity-50">
+               <CommandLineIcon className="w-16 h-16 mb-4" />
+               <h3 className="text-xl font-bold">{t.workInProgress}</h3>
+            </div>
+          )}
+        </main>
+
+        {/* Bottom Navigation Pill */}
+        <div className="fixed bottom-8 left-0 w-full flex justify-center z-50 px-4">
+           <div className="bg-white/80 dark:bg-black/80 backdrop-blur-2xl border border-white/20 dark:border-white/10 rounded-full px-2 py-2 shadow-2xl shadow-black/10 dark:shadow-black/40 flex gap-2">
+              <NavItem 
+                icon={HomeIcon} 
+                solidIcon={HomeSolid} 
+                active={currentView === View.HOME} 
+                onClick={() => setCurrentView(View.HOME)} 
+              />
+              <NavItem 
+                icon={UserGroupIcon} 
+                solidIcon={UserGroupSolid} 
+                active={currentView === View.SQUAD} 
+                onClick={() => setCurrentView(View.SQUAD)} 
+              />
+              <NavItem 
+                icon={CurrencyDollarIcon} 
+                solidIcon={CurrencyDollarSolid} 
+                active={currentView === View.MARKET} 
+                onClick={() => setCurrentView(View.MARKET)} 
+              />
+              <NavItem 
+                icon={Cog6ToothIcon} 
+                solidIcon={CogSolid} 
+                active={currentView === View.SETTINGS} 
+                onClick={() => setCurrentView(View.SETTINGS)} 
+              />
+           </div>
+        </div>
+
       </div>
     );
   }
 
-  // --- Login / Register View (Preserved) ---
+  // --- Login / Register View (Same as before) ---
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden font-sans bg-ghost dark:bg-obsidian text-obsidian dark:text-ghost transition-colors duration-300">
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">

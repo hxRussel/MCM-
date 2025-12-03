@@ -10,9 +10,18 @@ export enum Theme {
   AUTO = 'auto'
 }
 
+export enum View {
+  HOME = 'home',
+  SQUAD = 'squad',
+  MARKET = 'market',
+  SETTINGS = 'settings',
+  PROFILE = 'profile'
+}
+
 export interface UserData {
   uid: string;
   email: string | null;
+  displayName?: string | null;
 }
 
 export interface Translation {
@@ -37,7 +46,17 @@ export interface Translation {
   secureAccess: string;
   newCareer: string;
   
-  // Rework Placeholder
+  // Dashboard
+  hello: string;
+  searchPlaceholder: string;
+  continueCareer: string;
+  
+  // Nav
+  navHome: string;
+  navSquad: string;
+  navMarket: string;
+  navSettings: string;
+
+  // App
   workInProgress: string;
-  reworkMessage: string;
 }
