@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
+
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword, 
   onAuthStateChanged, 
   signOut,
+  updateProfile,
   User 
 } from 'firebase/auth';
 import { auth } from './services/firebase';
@@ -25,7 +27,11 @@ import {
   AdjustmentsHorizontalIcon,
   UserCircleIcon,
   ArrowRightIcon,
-  HeartIcon
+  HeartIcon,
+  ArrowLeftIcon,
+  CameraIcon,
+  TrashIcon,
+  CheckIcon
 } from '@heroicons/react/24/outline';
 import { 
   HomeIcon as HomeSolid,
@@ -135,6 +141,61 @@ const ToggleButton = ({ active, onClick, children, title, className = '' }: any)
     {children}
   </button>
 );
+
+const ConfirmationModal = ({ isOpen, title, message, onConfirm, onCancel, t }: any) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+      <div className="bg-white dark:bg-obsidian border border-white/10 p-6 rounded-2xl shadow-2xl max-w-sm w-full animate-scale-in">
+        <h3 className="text-xl font-bold mb-2">{title}</h3>
+        <p className="opacity-70 mb-6 text-sm">{message}</p>
+        <div className="flex gap-3">
+          <Button variant="ghost" onClick={onCancel}>{t.cancel}</Button>
+          <Button variant="danger" onClick={onConfirm}>{t.confirm}</Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- Utilities ---
+
+const compressImage = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 300;
+        const MAX_HEIGHT = 300;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.8));
+      };
+      img.onerror = (err) => reject(err);
+    };
+    reader.onerror = (err) => reject(err);
+  });
+};
 
 // --- Dashboard Components ---
 
@@ -264,25 +325,154 @@ const HomeView = ({ t }: { t: any }) => {
   );
 };
 
-const ProfileView = ({ user, handleLogout, t }: any) => (
-  <div className="animate-fade-in flex flex-col items-center justify-center h-full pt-20">
-    <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-mint to-blue-500 mb-6 flex items-center justify-center text-3xl font-bold text-white shadow-xl">
-      {user?.email?.charAt(0).toUpperCase()}
+const ProfileView = ({ user, handleLogout, t, avatar, setAvatar }: any) => {
+  const [viewMode, setViewMode] = useState<'main' | 'settings'>('main');
+  const [isEditing, setIsEditing] = useState(false);
+  const [newName, setNewName] = useState(user?.displayName || '');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      try {
+        const compressed = await compressImage(file);
+        setAvatar(compressed);
+        localStorage.setItem(`avatar_${user.uid}`, compressed);
+      } catch (err) {
+        console.error("Image processing failed", err);
+      }
+    }
+  };
+
+  const deleteAvatar = () => {
+    setAvatar(null);
+    localStorage.removeItem(`avatar_${user.uid}`);
+    setShowDeleteConfirm(false);
+  };
+
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleUpdateProfile = async () => {
+    if (user && newName.trim() !== '') {
+      try {
+        await updateProfile(user, { displayName: newName });
+        setIsEditing(false);
+        // We might want to force a refresh or state update here if needed
+        // but often Firebase auth updates propagate. 
+      } catch (error) {
+        console.error("Error updating profile", error);
+      }
+    }
+    setViewMode('main');
+  };
+
+  if (viewMode === 'settings') {
+    return (
+      <div className="animate-fade-in flex flex-col h-full pt-20 relative">
+        <ConfirmationModal 
+          isOpen={showDeleteConfirm}
+          title={t.deleteConfirmTitle}
+          message={t.deleteConfirmMessage}
+          onConfirm={deleteAvatar}
+          onCancel={() => setShowDeleteConfirm(false)}
+          t={t}
+        />
+
+        <div className="absolute top-6 left-0">
+          <button onClick={() => setViewMode('main')} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
+            <ArrowLeftIcon className="w-6 h-6" />
+          </button>
+        </div>
+
+        <h2 className="text-2xl font-black mb-8 text-center">{t.accountSettings}</h2>
+
+        <div className="flex flex-col items-center mb-8">
+          <div className="relative group">
+            {/* UPDATED: Clean border, no gradient, neutral background */}
+            <div className="w-32 h-32 rounded-full overflow-hidden shadow-2xl bg-black/5 dark:bg-white/5 border-4 border-white/20 dark:border-white/5">
+              <img 
+                src={avatar || `https://ui-avatars.com/api/?name=${user.email}&background=0D8ABC&color=fff`} 
+                alt="Profile" 
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <button 
+              onClick={triggerFileInput}
+              className="absolute bottom-0 right-0 bg-mint text-obsidian p-2 rounded-full shadow-lg hover:bg-mint-hover transition-transform hover:scale-110"
+              title={t.changeAvatar}
+            >
+              <CameraIcon className="w-5 h-5" />
+            </button>
+            {avatar && (
+              <button 
+                onClick={() => setShowDeleteConfirm(true)}
+                className="absolute top-0 right-0 bg-red-500 text-white p-2 rounded-full shadow-lg hover:bg-red-600 transition-transform hover:scale-110"
+                title={t.deleteAvatar}
+              >
+                <TrashIcon className="w-4 h-4" />
+              </button>
+            )}
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              onChange={handleFileChange} 
+              className="hidden" 
+              accept="image/*"
+            />
+          </div>
+        </div>
+
+        <GlassCard className="p-6 space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-bold opacity-70 ml-1">{t.nickname}</label>
+            <div className="relative">
+              <input 
+                type="text" 
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                className="w-full p-4 rounded-xl bg-black/5 dark:bg-white/5 border border-transparent focus:border-mint focus:ring-1 focus:ring-mint outline-none transition-all"
+              />
+              <UserCircleIcon className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 opacity-50" />
+            </div>
+          </div>
+
+          <div className="pt-4 flex gap-3">
+             <Button variant="ghost" onClick={() => setViewMode('main')}>{t.cancel}</Button>
+             <Button variant="primary" onClick={handleUpdateProfile}>{t.saveChanges}</Button>
+          </div>
+        </GlassCard>
+      </div>
+    );
+  }
+
+  return (
+    <div className="animate-fade-in flex flex-col items-center justify-center h-full pt-20">
+      {/* UPDATED: Clean border, no gradient, neutral background */}
+      <div className="w-24 h-24 rounded-full bg-obsidian/5 dark:bg-ghost/5 mb-6 flex items-center justify-center text-3xl font-bold shadow-xl overflow-hidden border-4 border-white/20 dark:border-white/5">
+        <img 
+          src={avatar || `https://ui-avatars.com/api/?name=${user.email}&background=0D8ABC&color=fff`} 
+          alt="Profile" 
+          className="w-full h-full object-cover"
+        />
+      </div>
+      <h2 className="text-2xl font-bold mb-1">{user?.displayName || 'Manager'}</h2>
+      <p className="opacity-50 mb-8">{user?.email}</p>
+      
+      <GlassCard className="w-full max-w-sm p-4 space-y-2">
+        <Button variant="ghost" className="justify-start gap-3" onClick={() => setViewMode('settings')}>
+          <CogSolid className="w-5 h-5" /> {t.accountSettings}
+        </Button>
+        <div className="h-px bg-obsidian/5 dark:bg-ghost/5"></div>
+        <Button variant="danger" onClick={handleLogout} className="justify-start gap-3">
+           {t.signOut}
+        </Button>
+      </GlassCard>
     </div>
-    <h2 className="text-2xl font-bold mb-1">{user?.displayName || 'Manager'}</h2>
-    <p className="opacity-50 mb-8">{user?.email}</p>
-    
-    <GlassCard className="w-full max-w-sm p-4 space-y-2">
-      <Button variant="ghost" className="justify-start gap-3">
-        <CogSolid className="w-5 h-5" /> Account Settings
-      </Button>
-      <div className="h-px bg-obsidian/5 dark:bg-ghost/5"></div>
-      <Button variant="danger" onClick={handleLogout} className="justify-start gap-3">
-         Sign Out
-      </Button>
-    </GlassCard>
-  </div>
-);
+  );
+};
 
 // --- Main App ---
 
@@ -306,6 +496,9 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Avatar State
+  const [avatar, setAvatar] = useState<string | null>(null);
+
   // Theme Logic
   useEffect(() => {
     const root = window.document.documentElement;
@@ -321,11 +514,20 @@ export default function App() {
     return () => mediaQuery.removeEventListener('change', handleSystemChange);
   }, [theme]);
 
-  // Auth Listener
+  // Auth Listener & Avatar Load
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       setLoading(false);
+      
+      if (currentUser) {
+        const savedAvatar = localStorage.getItem(`avatar_${currentUser.uid}`);
+        if (savedAvatar) {
+          setAvatar(savedAvatar);
+        } else {
+          setAvatar(null);
+        }
+      }
     });
     return () => unsubscribe();
   }, []);
@@ -353,7 +555,10 @@ export default function App() {
     } finally { setIsSubmitting(false); }
   };
 
-  const handleLogout = async () => { await signOut(auth); };
+  const handleLogout = async () => { 
+    await signOut(auth); 
+    setAvatar(null);
+  };
 
   const handleDevLogin = () => {
     const devUser = {
@@ -376,6 +581,8 @@ export default function App() {
       providerId: 'dev'
     } as unknown as User;
     setUser(devUser);
+    const savedAvatar = localStorage.getItem(`avatar_${devUser.uid}`);
+    setAvatar(savedAvatar || null);
   };
 
   if (loading) {
@@ -405,12 +612,12 @@ export default function App() {
                 <h1 className="text-2xl font-black tracking-tight">{user.displayName || 'Manager'}</h1>
               </div>
               <button onClick={() => setCurrentView(View.PROFILE)} className="relative group">
-                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 p-0.5 shadow-md group-hover:scale-105 transition-transform">
-                   {/* Placeholder Avatar */}
+                 {/* UPDATED: Clean border, no gradient */}
+                 <div className="w-10 h-10 rounded-full border-2 border-obsidian/10 dark:border-ghost/10 group-hover:border-mint transition-colors duration-300 overflow-hidden">
                    <img 
-                      src={`https://ui-avatars.com/api/?name=${user.email}&background=0D8ABC&color=fff`} 
+                      src={avatar || `https://ui-avatars.com/api/?name=${user.email}&background=0D8ABC&color=fff`} 
                       alt="Profile" 
-                      className="w-full h-full rounded-full object-cover"
+                      className="w-full h-full object-cover"
                    />
                  </div>
               </button>
@@ -420,7 +627,15 @@ export default function App() {
         {/* Main Scrollable Content */}
         <main className="pt-24 pb-32 px-6 min-h-screen">
           {currentView === View.HOME && <HomeView t={t} />}
-          {currentView === View.PROFILE && <ProfileView user={user} handleLogout={handleLogout} t={t} />}
+          {currentView === View.PROFILE && 
+            <ProfileView 
+              user={user} 
+              handleLogout={handleLogout} 
+              t={t} 
+              avatar={avatar}
+              setAvatar={setAvatar}
+            />
+          }
           
           {/* Placeholder for other views */}
           {(currentView !== View.HOME && currentView !== View.PROFILE) && (

@@ -35,7 +35,19 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     navSettings: "Settings",
 
     // App
-    workInProgress: "Work in Progress"
+    workInProgress: "Work in Progress",
+
+    // Profile
+    accountSettings: "Account Settings",
+    editProfile: "Edit Profile",
+    nickname: "Nickname",
+    changeAvatar: "Change Photo",
+    deleteAvatar: "Remove Photo",
+    saveChanges: "Save Changes",
+    cancel: "Cancel",
+    deleteConfirmTitle: "Delete Photo?",
+    deleteConfirmMessage: "Are you sure you want to delete your profile photo? This cannot be undone.",
+    confirm: "Confirm"
   },
   [Language.IT]: {
     welcome: "Benvenuto su MCM+",
@@ -70,6 +82,18 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     navSettings: "Impostazioni",
 
     // App
-    workInProgress: "Lavori in corso"
+    workInProgress: "Lavori in corso",
+
+    // Profile
+    accountSettings: "Impostazioni Account",
+    editProfile: "Modifica Profilo",
+    nickname: "Nickname",
+    changeAvatar: "Cambia Foto",
+    deleteAvatar: "Rimuovi Foto",
+    saveChanges: "Salva Modifiche",
+    cancel: "Annulla",
+    deleteConfirmTitle: "Eliminare Foto?",
+    deleteConfirmMessage: "Sei sicuro di voler eliminare la tua foto profilo? Questa azione non può essere annullata.",
+    confirm: "Conferma"
   }
 };

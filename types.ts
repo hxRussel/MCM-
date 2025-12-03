@@ -59,4 +59,16 @@ export interface Translation {
 
   // App
   workInProgress: string;
+
+  // Profile
+  accountSettings: string;
+  editProfile: string;
+  nickname: string;
+  changeAvatar: string;
+  deleteAvatar: string;
+  saveChanges: string;
+  cancel: string;
+  deleteConfirmTitle: string;
+  deleteConfirmMessage: string;
+  confirm: string;
 }
