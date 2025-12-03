@@ -1,4 +1,3 @@
-
 export enum Language {
   EN = 'en',
   IT = 'it'
@@ -122,7 +121,7 @@ export interface Translation {
   statsOverview: string;
   financials: string;
 
-  // Season & Career Management
+  // Season & Actions
   currentSeason: string;
   startSeason: string;
   endSeason: string;
@@ -131,4 +130,27 @@ export interface Translation {
   deleteCareerMessage: string;
   seasonAdvanced: string;
   managerActions: string;
+
+  // Squad & AI Import
+  addPlayer: string;
+  importPlayers: string;
+  aiScan: string;
+  aiScanDesc: string;
+  pasteText: string;
+  pasteTextDesc: string;
+  uploadImage: string;
+  analyze: string;
+  analyzing: string;
+  importSuccess: string;
+  noPlayersFound: string;
+  confirmImport: string;
+  discard: string;
+  positionGK: string;
+  positionDEF: string;
+  positionMID: string;
+  positionFWD: string;
+  editPlayer: string;
+  releasePlayer: string;
+  releaseConfirmTitle: string;
+  releaseConfirmMessage: string;
 }

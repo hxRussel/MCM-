@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   createUserWithEmailAndPassword, 
@@ -9,8 +8,9 @@ import {
   User 
 } from 'firebase/auth';
 import { doc, setDoc, onSnapshot } from 'firebase/firestore';
+import { GoogleGenAI } from "@google/genai";
 import { auth, db } from './services/firebase';
-import { Language, Theme, View, Career, Team } from './types';
+import { Language, Theme, View, Career, Team, Player } from './types';
 import { TRANSLATIONS, MOCK_TEAMS, STARTING_SEASONS } from './constants';
 import { 
   SunIcon, 
@@ -38,7 +38,11 @@ import {
   UserPlusIcon,
   BriefcaseIcon,
   CalendarDaysIcon,
-  ForwardIcon
+  ForwardIcon,
+  SparklesIcon,
+  PhotoIcon,
+  DocumentTextIcon,
+  CheckCircleIcon
 } from '@heroicons/react/24/outline';
 import { 
   HomeIcon as HomeSolid,
@@ -190,6 +194,21 @@ const ConfirmationModal = ({ isOpen, title, message, onConfirm, onCancel, t }: a
   );
 };
 
+const GlassCard = ({ children, className = '', onClick }: { children?: React.ReactNode, className?: string, onClick?: () => void }) => (
+  <div 
+    onClick={onClick}
+    className={`
+      bg-white/80 dark:bg-black/40 backdrop-blur-xl 
+      border border-white/40 dark:border-white/5 
+      shadow-xl shadow-black/5 dark:shadow-black/20
+      rounded-3xl overflow-hidden
+      ${className}
+    `}
+  >
+    {children}
+  </div>
+);
+
 // --- Utilities ---
 
 const compressImage = (file: File): Promise<string> => {
@@ -238,48 +257,311 @@ const formatMoney = (amount: number) => {
   return `€${amount}`;
 };
 
-// --- Dashboard Components ---
+// --- Squad & AI Components ---
 
-const GlassCard = ({ children, className = '', onClick }: { children?: React.ReactNode, className?: string, onClick?: () => void }) => (
-  <div 
-    onClick={onClick}
-    className={`
-      bg-white/80 dark:bg-black/40 backdrop-blur-xl 
-      border border-white/40 dark:border-white/5 
-      shadow-xl shadow-black/5 dark:shadow-black/20
-      rounded-3xl overflow-hidden
-      ${className}
-    `}
-  >
-    {children}
-  </div>
-);
+const PlayerCard: React.FC<{ player: Player; onClick: () => void }> = ({ player, onClick }) => {
+  let ovrColor = "bg-red-500 text-white";
+  if (player.overall >= 70) ovrColor = "bg-yellow-500 text-black";
+  if (player.overall >= 80) ovrColor = "bg-mint text-obsidian";
+  if (player.overall >= 90) ovrColor = "bg-teal-400 text-white";
 
-const NavItem = ({ icon: Icon, solidIcon: SolidIcon, label, active, onClick }: any) => (
-  <button 
-    onClick={onClick}
-    className={`
-      flex flex-col items-center justify-center w-12 h-12 rounded-full transition-all duration-300
-      ${active ? 'bg-obsidian dark:bg-ghost text-ghost dark:text-obsidian scale-110 shadow-lg' : 'text-obsidian/50 dark:text-ghost/50 hover:text-obsidian dark:hover:text-ghost'}
-    `}
-  >
-    {active ? <SolidIcon className="w-6 h-6" /> : <Icon className="w-6 h-6" />}
-  </button>
-);
+  return (
+    <GlassCard onClick={onClick} className="p-3 flex items-center gap-3 cursor-pointer hover:bg-white/90 dark:hover:bg-black/50 transition-colors group">
+      <div className={`w-10 h-10 rounded-full ${ovrColor} flex items-center justify-center font-black text-sm shadow-md`}>
+        {player.overall}
+      </div>
+      <div className="flex-1 min-w-0">
+        <h4 className="font-bold truncate text-sm">{player.name}</h4>
+        <div className="flex items-center gap-2 text-xs opacity-60">
+           <span className="font-mono bg-obsidian/10 dark:bg-ghost/10 px-1 rounded">{player.position}</span>
+           <span>• {player.age}yo</span>
+        </div>
+      </div>
+      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+        <ArrowRightIcon className="w-4 h-4" />
+      </div>
+    </GlassCard>
+  );
+};
 
-const StatCard = ({ icon: Icon, value, label, colorClass = "text-obsidian dark:text-ghost" }: any) => (
-  <GlassCard className="p-4 flex flex-col justify-between items-center text-center h-full hover:bg-white/90 dark:hover:bg-black/50 transition-colors">
-    <div className={`p-3 rounded-full bg-white/50 dark:bg-white/5 mb-2 ${colorClass}`}>
-      <Icon className="w-6 h-6" />
+const ImportSquadModal = ({ isOpen, onClose, onImport, t }: any) => {
+  const [activeTab, setActiveTab] = useState<'image' | 'text'>('image');
+  const [isLoading, setIsLoading] = useState(false);
+  const [textInput, setTextInput] = useState('');
+  const [previewPlayers, setPreviewPlayers] = useState<Player[]>([]);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  // Gemini AI Logic
+  const analyzeData = async (content: any, type: 'text' | 'image') => {
+    setIsLoading(true);
+    setPreviewPlayers([]);
+    
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      
+      const systemPrompt = `
+        You are a FC24/FC25 database expert. Extract player data from the provided ${type}.
+        Return ONLY a JSON array of objects. No markdown, no code blocks.
+        Each object must have: 
+        - name (string)
+        - age (number, default 20 if unknown)
+        - overall (number, default 70 if unknown)
+        - position (string, use standard abbreviations like GK, CB, LB, RB, CDM, CM, CAM, LM, RM, LW, RW, ST, CF)
+        - nationality (string, default 'Unknown')
+        - value (number, estimate based on overall if unknown, just raw number)
+        - wage (number, estimate based on overall if unknown, just raw number)
+        
+        If the input is an image, do your best to OCR the stats.
+        If position is vague (e.g. Defender), guess CB.
+        Limit to valid JSON array only.
+      `;
+
+      let response: string | undefined;
+      
+      if (type === 'text') {
+        const result = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: `${systemPrompt}\n\nDATA:\n${textInput}`
+        });
+        response = result.text;
+      } else {
+        // Image handling
+         const result = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: {
+                parts: [
+                    { text: systemPrompt },
+                    { 
+                        inlineData: { 
+                            mimeType: "image/jpeg", 
+                            data: content.split(',')[1] // Remove 'data:image/jpeg;base64,' prefix
+                        } 
+                    }
+                ]
+            }
+        });
+        response = result.text;
+      }
+
+      const text = response || "";
+      // Clean response (remove potential markdown)
+      const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
+      const players = JSON.parse(cleanJson);
+
+      // Add IDs and defaults
+      const formattedPlayers = players.map((p: any) => ({
+        id: 'imported-' + Date.now() + Math.random(),
+        name: p.name || 'Unknown',
+        age: p.age || 20,
+        overall: p.overall || 70,
+        position: p.position || 'CM',
+        nationality: p.nationality || 'Unknown',
+        value: p.value || 1000000,
+        wage: p.wage || 5000,
+        isHomegrown: false,
+        isNonEU: false
+      }));
+
+      setPreviewPlayers(formattedPlayers);
+
+    } catch (e) {
+      console.error("AI Error", e);
+      alert(t.errorGeneric);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files?.[0]) {
+      const base64 = await compressImage(e.target.files[0]);
+      analyzeData(base64, 'image');
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+      <div className="bg-white dark:bg-obsidian border border-white/10 w-full max-w-2xl h-[80vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-scale-in">
+        
+        {/* Header */}
+        <div className="p-6 border-b border-obsidian/5 dark:border-ghost/5 flex justify-between items-center">
+           <div>
+             <h3 className="text-xl font-black flex items-center gap-2">
+               <SparklesIcon className="w-6 h-6 text-mint" />
+               {t.importPlayers}
+             </h3>
+             <p className="text-xs opacity-50">Powered by Gemini AI</p>
+           </div>
+           <button onClick={onClose} className="p-2 hover:bg-black/5 rounded-full">
+             <ArrowRightIcon className="w-6 h-6 rotate-45" />
+           </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6">
+           
+           {previewPlayers.length === 0 ? (
+             <div className="space-y-6">
+                {/* Tabs */}
+                <div className="flex gap-2 p-1 bg-black/5 dark:bg-white/5 rounded-xl">
+                  <button 
+                    onClick={() => setActiveTab('image')}
+                    className={`flex-1 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${activeTab === 'image' ? 'bg-white dark:bg-obsidian shadow-sm text-mint' : 'opacity-50'}`}
+                  >
+                    <PhotoIcon className="w-4 h-4" /> {t.aiScan}
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab('text')}
+                    className={`flex-1 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${activeTab === 'text' ? 'bg-white dark:bg-obsidian shadow-sm text-mint' : 'opacity-50'}`}
+                  >
+                    <DocumentTextIcon className="w-4 h-4" /> {t.pasteText}
+                  </button>
+                </div>
+
+                {activeTab === 'image' ? (
+                  <div className="text-center py-10 border-2 border-dashed border-obsidian/10 dark:border-ghost/10 rounded-2xl hover:bg-black/5 transition-colors cursor-pointer" onClick={() => fileRef.current?.click()}>
+                     <CameraIcon className="w-12 h-12 mx-auto mb-4 opacity-30" />
+                     <p className="font-bold">{t.uploadImage}</p>
+                     <p className="text-sm opacity-50 mt-1 max-w-xs mx-auto">{t.aiScanDesc}</p>
+                     <input type="file" ref={fileRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <textarea 
+                      value={textInput}
+                      onChange={(e) => setTextInput(e.target.value)}
+                      placeholder={t.pasteTextDesc}
+                      className="w-full h-40 p-4 rounded-xl bg-black/5 dark:bg-white/5 resize-none border-none focus:ring-2 focus:ring-mint outline-none"
+                    />
+                    <Button onClick={() => analyzeData(null, 'text')} disabled={!textInput}>
+                      {t.analyze}
+                    </Button>
+                  </div>
+                )}
+                
+                {isLoading && (
+                   <div className="text-center py-4 text-mint animate-pulse font-bold">
+                     {t.analyzing}
+                   </div>
+                )}
+             </div>
+           ) : (
+             <div className="space-y-4">
+                <div className="flex items-center justify-between mb-4">
+                   <h4 className="font-bold">{previewPlayers.length} Players Found</h4>
+                   <button onClick={() => setPreviewPlayers([])} className="text-xs text-red-500 hover:underline">{t.discard}</button>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {previewPlayers.map(p => (
+                    <div key={p.id} className="flex items-center gap-3 p-3 rounded-xl bg-black/5 dark:bg-white/5 border border-transparent">
+                       <span className="font-mono text-xs font-bold bg-white dark:bg-black px-1.5 py-0.5 rounded">{p.position}</span>
+                       <span className="flex-1 font-bold text-sm truncate">{p.name}</span>
+                       <span className="text-xs font-bold bg-mint text-obsidian px-1.5 rounded">{p.overall}</span>
+                    </div>
+                  ))}
+                </div>
+             </div>
+           )}
+
+        </div>
+
+        {/* Footer */}
+        {previewPlayers.length > 0 && (
+          <div className="p-6 border-t border-obsidian/5 dark:border-ghost/5 bg-white/50 dark:bg-black/50">
+             <Button onClick={() => onImport(previewPlayers)}>
+               <CheckCircleIcon className="w-5 h-5 mr-2" />
+               {t.confirmImport}
+             </Button>
+          </div>
+        )}
+
+      </div>
     </div>
-    <div>
-      <span className="text-2xl font-black block tracking-tight">{value}</span>
-      <span className="text-xs font-bold opacity-50 uppercase tracking-widest">{label}</span>
-    </div>
-  </GlassCard>
-);
+  );
+};
 
-// --- Views ---
+const SquadView = ({ t, career, onUpdateCareer }: { t: any, career: Career, onUpdateCareer: (c: Career) => void }) => {
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  
+  const handleImport = (newPlayers: Player[]) => {
+    // Append to existing
+    const updatedPlayers = [...career.players, ...newPlayers];
+    onUpdateCareer({ ...career, players: updatedPlayers });
+    setImportModalOpen(false);
+  };
+
+  const removePlayer = (id: string) => {
+    if (window.confirm(t.releaseConfirmMessage)) {
+       const updatedPlayers = career.players.filter(p => p.id !== id);
+       onUpdateCareer({ ...career, players: updatedPlayers });
+    }
+  };
+
+  // Group players
+  const sections = {
+    [t.positionGK]: career.players.filter(p => p.position === 'GK'),
+    [t.positionDEF]: career.players.filter(p => ['CB','LB','RB','LWB','RWB'].includes(p.position)),
+    [t.positionMID]: career.players.filter(p => ['CM','CDM','CAM','LM','RM'].includes(p.position)),
+    [t.positionFWD]: career.players.filter(p => ['ST','CF','LW','RW'].includes(p.position)),
+  };
+
+  return (
+    <div className="animate-fade-in space-y-8 pb-24">
+      <ImportSquadModal 
+        isOpen={importModalOpen} 
+        onClose={() => setImportModalOpen(false)} 
+        onImport={handleImport} 
+        t={t}
+      />
+      
+      {/* Header Action */}
+      <div className="flex justify-between items-end">
+        <div>
+           <h2 className="text-3xl font-black">{t.navSquad}</h2>
+           <p className="opacity-60">{career.players.length} Players</p>
+        </div>
+        <button 
+          onClick={() => setImportModalOpen(true)}
+          className="bg-mint text-obsidian px-4 py-2 rounded-xl font-bold shadow-lg shadow-mint/20 hover:scale-105 transition-transform flex items-center gap-2"
+        >
+          <SparklesIcon className="w-5 h-5" />
+          {t.importPlayers}
+        </button>
+      </div>
+
+      {/* Render Groups */}
+      {Object.entries(sections).map(([label, players]) => (
+        players.length > 0 && (
+          <div key={label}>
+             <h3 className="text-xs font-bold uppercase tracking-widest opacity-40 mb-3 ml-1">{label}</h3>
+             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+               {players.map(player => (
+                 <PlayerCard 
+                   key={player.id} 
+                   player={player} 
+                   onClick={() => removePlayer(player.id)} // Simplified for now, just remove on click for demo or open edit
+                 />
+               ))}
+             </div>
+          </div>
+        )
+      ))}
+
+      {career.players.length === 0 && (
+        <div className="text-center py-20 opacity-40">
+           <UserGroupIcon className="w-16 h-16 mx-auto mb-4" />
+           <p>{t.noPlayersFound}</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// --- Main App & Navigation Logic ---
+
+// ... (Rest of existing App logic)
 
 const HomeView = ({ t, career, onSaveCareer }: { t: any, career: Career | null, onSaveCareer: (c: Career | null) => void }) => {
   const [managerName, setManagerName] = useState('');
@@ -647,6 +929,32 @@ const ProfileView = ({ user, handleLogout, t, avatar, onSaveAvatar, onSaveProfil
   );
 };
 
+// --- Nav Item & Stat Card Helpers ---
+
+const NavItem = ({ icon: Icon, solidIcon: SolidIcon, label, active, onClick }: any) => (
+  <button 
+    onClick={onClick}
+    className={`
+      flex flex-col items-center justify-center w-12 h-12 rounded-full transition-all duration-300
+      ${active ? 'bg-obsidian dark:bg-ghost text-ghost dark:text-obsidian scale-110 shadow-lg' : 'text-obsidian/50 dark:text-ghost/50 hover:text-obsidian dark:hover:text-ghost'}
+    `}
+  >
+    {active ? <SolidIcon className="w-6 h-6" /> : <Icon className="w-6 h-6" />}
+  </button>
+);
+
+const StatCard = ({ icon: Icon, value, label, colorClass = "text-obsidian dark:text-ghost" }: any) => (
+  <GlassCard className="p-4 flex flex-col justify-between items-center text-center h-full hover:bg-white/90 dark:hover:bg-black/50 transition-colors">
+    <div className={`p-3 rounded-full bg-white/50 dark:bg-white/5 mb-2 ${colorClass}`}>
+      <Icon className="w-6 h-6" />
+    </div>
+    <div>
+      <span className="text-2xl font-black block tracking-tight">{value}</span>
+      <span className="text-xs font-bold opacity-50 uppercase tracking-widest">{label}</span>
+    </div>
+  </GlassCard>
+);
+
 // --- Main App ---
 
 export default function App() {
@@ -854,6 +1162,7 @@ export default function App() {
         {/* Main Scrollable Content */}
         <main className="pt-24 pb-32 px-6 min-h-screen">
           {currentView === View.HOME && <HomeView t={t} career={career} onSaveCareer={handleSaveCareer} />}
+          {currentView === View.SQUAD && career && <SquadView t={t} career={career} onUpdateCareer={handleSaveCareer} />}
           {currentView === View.PROFILE && 
             <ProfileView 
               user={user} 
@@ -865,7 +1174,7 @@ export default function App() {
             />
           }
           
-          {(currentView !== View.HOME && currentView !== View.PROFILE) && (
+          {(currentView !== View.HOME && currentView !== View.PROFILE && currentView !== View.SQUAD) && (
             <div className="flex flex-col items-center justify-center h-[60vh] opacity-50">
                <CommandLineIcon className="w-16 h-16 mb-4" />
                <h3 className="text-xl font-bold">{t.workInProgress}</h3>

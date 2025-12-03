@@ -1,5 +1,7 @@
 {
   "name": "MCM+",
   "description": "FC Manager Career Management - Login and Authentication Portal",
-  "requestFramePermissions": []
+  "requestFramePermissions": [
+    "camera"
+  ]
 }

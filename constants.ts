@@ -1,4 +1,3 @@
-
 import { Language, Translation, Team, Player } from './types';
 
 export const STARTING_SEASONS = [
@@ -11,7 +10,7 @@ export const STARTING_SEASONS = [
 export const MOCK_PLAYERS: Player[] = [
   { id: '1', name: 'Thibaut Courtois', age: 31, overall: 90, position: 'GK', nationality: 'Belgium', value: 60000000, wage: 250000, isHomegrown: false, isNonEU: false },
   { id: '2', name: 'Vinícius Jr.', age: 23, overall: 89, position: 'LW', nationality: 'Brazil', value: 120000000, wage: 300000, isHomegrown: false, isNonEU: true },
-  { id: '3', name: 'Jude Bellingham', age: 20, overall: 87, position: 'CAM', nationality: 'England', value: 110000000, wage: 200000, isHomegrown: false, isNonEU: true }, // Counts as Non-EU in some contexts post-Brexit, simplified here
+  { id: '3', name: 'Jude Bellingham', age: 20, overall: 87, position: 'CAM', nationality: 'England', value: 110000000, wage: 200000, isHomegrown: false, isNonEU: true },
   { id: '4', name: 'Nacho Fernández', age: 34, overall: 82, position: 'CB', nationality: 'Spain', value: 8000000, wage: 90000, isHomegrown: true, isNonEU: false },
   { id: '5', name: 'Federico Valverde', age: 25, overall: 88, position: 'CM', nationality: 'Uruguay', value: 90000000, wage: 180000, isHomegrown: false, isNonEU: true },
   { id: '6', name: 'Dani Carvajal', age: 32, overall: 84, position: 'RB', nationality: 'Spain', value: 15000000, wage: 110000, isHomegrown: true, isNonEU: false },
@@ -38,7 +37,7 @@ export const MOCK_TEAMS: Team[] = [
     wageBudget: 5500000,
     players: [
        { id: '11', name: 'Erling Haaland', age: 23, overall: 91, position: 'ST', nationality: 'Norway', value: 150000000, wage: 400000, isHomegrown: false, isNonEU: false },
-       { id: '12', name: 'Phil Foden', age: 23, overall: 86, position: 'RW', nationality: 'England', value: 90000000, wage: 200000, isHomegrown: true, isNonEU: true }, // Brexit logic applied for demo
+       { id: '12', name: 'Phil Foden', age: 23, overall: 86, position: 'RW', nationality: 'England', value: 90000000, wage: 200000, isHomegrown: true, isNonEU: true }, 
        { id: '13', name: 'Kevin De Bruyne', age: 32, overall: 91, position: 'CM', nationality: 'Belgium', value: 60000000, wage: 350000, isHomegrown: false, isNonEU: false },
        { id: '14', name: 'Rico Lewis', age: 19, overall: 76, position: 'RB', nationality: 'England', value: 15000000, wage: 40000, isHomegrown: true, isNonEU: true },
     ]
@@ -129,7 +128,30 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     deleteCareerTitle: "Delete Career?",
     deleteCareerMessage: "Are you sure you want to delete this career? All data will be lost permanently.",
     seasonAdvanced: "Season advanced!",
-    managerActions: "Manager Actions"
+    managerActions: "Manager Actions",
+
+    // Squad & AI Import
+    addPlayer: "Add Player",
+    importPlayers: "AI Import",
+    aiScan: "Scan Image",
+    aiScanDesc: "Take a photo of your squad screen (FC25/24). The AI will extract player data.",
+    pasteText: "Paste Text",
+    pasteTextDesc: "Paste a list of players from SoFifa, Futbin or a text file.",
+    uploadImage: "Upload Image",
+    analyze: "Analyze with Gemini AI",
+    analyzing: "AI is analyzing...",
+    importSuccess: "Players imported successfully!",
+    noPlayersFound: "No players found. Try a clearer image or text.",
+    confirmImport: "Confirm Import",
+    discard: "Discard",
+    positionGK: "Goalkeepers",
+    positionDEF: "Defenders",
+    positionMID: "Midfielders",
+    positionFWD: "Forwards",
+    editPlayer: "Edit Player",
+    releasePlayer: "Release Player",
+    releaseConfirmTitle: "Release Player?",
+    releaseConfirmMessage: "Are you sure? This will remove the player from your squad.",
   },
   [Language.IT]: {
     welcome: "Benvenuto su MCM+",
@@ -203,6 +225,29 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     deleteCareerTitle: "Eliminare Carriera?",
     deleteCareerMessage: "Sei sicuro di voler eliminare questa carriera? Tutti i dati andranno persi per sempre.",
     seasonAdvanced: "Stagione avanzata!",
-    managerActions: "Azioni Manager"
+    managerActions: "Azioni Manager",
+
+    // Squad & AI Import
+    addPlayer: "Aggiungi",
+    importPlayers: "Importa con AI",
+    aiScan: "Scansiona Immagine",
+    aiScanDesc: "Fai una foto alla schermata della rosa (FC25/24). L'AI estrarrà i dati.",
+    pasteText: "Incolla Testo",
+    pasteTextDesc: "Incolla una lista di giocatori da SoFifa, Futbin o testo.",
+    uploadImage: "Carica Immagine",
+    analyze: "Analizza con Gemini AI",
+    analyzing: "L'AI sta analizzando...",
+    importSuccess: "Giocatori importati con successo!",
+    noPlayersFound: "Nessun giocatore trovato. Prova un'immagine più chiara.",
+    confirmImport: "Conferma Importazione",
+    discard: "Annulla",
+    positionGK: "Portieri",
+    positionDEF: "Difensori",
+    positionMID: "Centrocampisti",
+    positionFWD: "Attaccanti",
+    editPlayer: "Modifica",
+    releasePlayer: "Svincola",
+    releaseConfirmTitle: "Svincolare Giocatore?",
+    releaseConfirmMessage: "Sei sicuro? Il giocatore verrà rimosso dalla rosa.",
   }
 };
