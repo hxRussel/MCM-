@@ -211,7 +211,8 @@ const GlassCard = ({ children, className = '', onClick }: { children?: React.Rea
 
 // --- Utilities ---
 
-const compressImage = (file: File): Promise<string> => {
+// Updated to allow higher resolution for OCR
+const compressImage = (file: File, maxWidth = 300, maxHeight = 300): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
@@ -220,27 +221,26 @@ const compressImage = (file: File): Promise<string> => {
       img.src = event.target?.result as string;
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 300;
-        const MAX_HEIGHT = 300;
         let width = img.width;
         let height = img.height;
 
         if (width > height) {
-          if (width > MAX_WIDTH) {
-            height *= MAX_WIDTH / width;
-            width = MAX_WIDTH;
+          if (width > maxWidth) {
+            height *= maxWidth / width;
+            width = maxWidth;
           }
         } else {
-          if (height > MAX_HEIGHT) {
-            width *= MAX_HEIGHT / height;
-            height = MAX_HEIGHT;
+          if (height > maxHeight) {
+            width *= maxHeight / height;
+            height = maxHeight;
           }
         }
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext('2d');
         ctx?.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/jpeg', 0.8));
+        // Use higher quality for OCR
+        resolve(canvas.toDataURL('image/jpeg', 0.9));
       };
       img.onerror = (err) => reject(err);
     };
@@ -305,40 +305,43 @@ const ImportSquadModal = ({ isOpen, onClose, onImport, t }: any) => {
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       
-      // 2. VERY STRICT Anti-Hallucination Prompt
+      // 2. Strict OCR System Prompt
       const systemPrompt = `
-        You are a strict OCR Data Extraction engine for FC 24/FC 25.
-        
-        TASK: Extract ONLY clearly visible player data.
+        ROLE: You are an Optical Character Recognition (OCR) engine. 
+        TASK: Transcribe the text from the image perfectly.
         
         STRICT RULES:
-        1. DO NOT HALLUCINATE. DO NOT INVENT PLAYERS. 
-        2. If you cannot read a name clearly, SKIP IT.
-        3. If the image is blurry, return an empty array [].
-        4. Return ONLY a valid JSON array. No markdown.
-        5. Look for these headers: POS, NAME, OVR, AGE.
+        1. READ ONLY THE PIXELS IN THE IMAGE. 
+        2. DO NOT USE YOUR INTERNAL KNOWLEDGE. If the image says "Edin Dzeko", write "Edin Dzeko". If it says "Mario Rossi", write "Mario Rossi".
+        3. DO NOT HALLUCINATE players that are not visible.
+        4. If you cannot read the text because it is blurry, return an empty array. Do not guess.
         
-        JSON STRUCTURE:
-        [
-          {
-            "name": "Exact Name Read",
-            "position": "GK/CB/LB/RB/CDM/CM/CAM/LM/RM/LW/RW/ST/CF",
-            "overall": number (e.g. 82),
-            "age": number (e.g. 24)
-          }
-        ]
+        EXTRACTION GOAL:
+        Extract a JSON array of players. For each player row in the image, extract:
+        - name (String)
+        - position (String, e.g., ST, CB, GK)
+        - overall (Number, 0-99) - Look for a number usually in a colored badge or column.
+        - age (Number, 15-50)
         
-        If unsure about a player, do NOT include them. Better to have 0 players than 1 fake player.
+        FALLBACKS:
+        - If 'overall' is not visible, default to 75.
+        - If 'age' is not visible, default to 25.
+        - If 'position' is not visible, default to 'CM'.
+        
+        JSON FORMAT:
+        [{"name": "Name found in pixels", "position": "ST", "overall": 82, "age": 29}]
+        
+        Return ONLY the JSON array string. No markdown, no explanations.
       `;
 
-      let response: string | undefined;
+      let responseText: string | undefined;
       
       if (type === 'text') {
         const result = await ai.models.generateContent({
             model: "gemini-2.5-flash",
-            contents: `${systemPrompt}\n\nINPUT DATA TO PARSE:\n${textInput}`
+            contents: `${systemPrompt}\n\nINPUT DATA:\n${textInput}`
         });
-        response = result.text;
+        responseText = result.text;
       } else {
         // Image handling
          const result = await ai.models.generateContent({
@@ -349,25 +352,29 @@ const ImportSquadModal = ({ isOpen, onClose, onImport, t }: any) => {
                     { 
                         inlineData: { 
                             mimeType: "image/jpeg", 
-                            data: content.split(',')[1] // Remove 'data:image/jpeg;base64,' prefix
+                            data: content.split(',')[1] 
                         } 
                     }
                 ]
             }
         });
-        response = result.text;
+        responseText = result.text;
       }
 
-      const text = response || "";
-      // Clean response (remove potential markdown)
-      const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
+      const rawText = responseText || "";
+      console.log("Gemini Raw Response:", rawText); // For debugging
+
+      // Robust JSON Extraction
+      // Find the first '[' and the last ']'
+      const jsonMatch = rawText.match(/\[.*\]/s);
+      const cleanJson = jsonMatch ? jsonMatch[0] : "[]";
       
       let players = [];
       try {
         players = JSON.parse(cleanJson);
       } catch (jsonError) {
-        console.warn("Failed to parse JSON", text);
-        // If empty or invalid, players remains []
+        console.error("Failed to parse extracted JSON", cleanJson);
+        // Fallback: Try to find loose JSON objects if array parse fails
       }
 
       if (!Array.isArray(players)) {
@@ -378,10 +385,10 @@ const ImportSquadModal = ({ isOpen, onClose, onImport, t }: any) => {
       const formattedPlayers = players.map((p: any) => ({
         id: 'imported-' + Date.now() + Math.random(),
         name: p.name || 'Unknown',
-        age: typeof p.age === 'number' ? p.age : 20,
-        overall: typeof p.overall === 'number' ? p.overall : 70,
+        age: (typeof p.age === 'number' && p.age > 10) ? p.age : 25,
+        overall: (typeof p.overall === 'number' && p.overall > 40) ? p.overall : 75,
         position: p.position || 'CM',
-        nationality: 'Unknown', // AI cannot usually see nationality flags well enough
+        nationality: 'Unknown', 
         value: 1000000,
         wage: 5000,
         isHomegrown: false,
@@ -396,7 +403,7 @@ const ImportSquadModal = ({ isOpen, onClose, onImport, t }: any) => {
 
     } catch (e) {
       console.error("AI Error", e);
-      alert(t.errorGeneric + " Check API Key.");
+      alert(t.errorGeneric + " Check console for details.");
     } finally {
       setIsLoading(false);
     }
@@ -404,7 +411,8 @@ const ImportSquadModal = ({ isOpen, onClose, onImport, t }: any) => {
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.[0]) {
-      const base64 = await compressImage(e.target.files[0]);
+      // Use HIGH RESOLUTION (2048px) for OCR, not 300px
+      const base64 = await compressImage(e.target.files[0], 2048, 2048);
       analyzeData(base64, 'image');
     }
   };
@@ -823,7 +831,8 @@ const ProfileView = ({ user, handleLogout, t, avatar, onSaveAvatar, onSaveProfil
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       try {
-        const compressed = await compressImage(file);
+        // Use standard 300x300 for avatar
+        const compressed = await compressImage(file, 300, 300);
         // Save to Firestore via parent handler
         onSaveAvatar(compressed);
       } catch (err) {
