@@ -1,31 +1,5 @@
 
-
-import { Language, Translation, Career, Player } from './types';
-
-export const MOCK_CAREER: Career = {
-  id: 'mock-career-1',
-  userId: 'mock-user',
-  teamId: 'mock-real-madrid',
-  teamName: 'Real Madrid (Mock)',
-  managerName: 'Carlo Ancelotti',
-  season: '2025/2026',
-  seasonOffset: 0,
-  lastPlayed: new Date().toISOString(),
-  rating: 5,
-  isActive: true,
-  logoUrl: 'https://images.unsplash.com/photo-1522778119026-d647f0565c6a?q=80&w=2070&auto=format&fit=crop',
-  playerOverrides: {},
-  seasonStartingOveralls: {}
-};
-
-export const MOCK_PLAYERS: Player[] = [
-  { id: 'm1', name: 'Vinicius Jr', position: 'LW', overall: 89, age: 23, height: 176, weight: 73, nationality: 'Brazil', teamId: 'mock-real-madrid', team: 'Real Madrid', acceleration: 95, 'sprint speed': 95, dribbling: 90, finishing: 84 },
-  { id: 'm2', name: 'Jude Bellingham', position: 'CAM', overall: 87, age: 20, height: 186, weight: 75, nationality: 'England', teamId: 'mock-real-madrid', team: 'Real Madrid', vision: 88, 'short passing': 89, stamina: 92 },
-  { id: 'm3', name: 'Thibaut Courtois', position: 'GK', overall: 90, age: 31, height: 200, weight: 96, nationality: 'Belgium', teamId: 'mock-real-madrid', team: 'Real Madrid', 'gk diving': 85, 'gk reflexes': 93 },
-  { id: 'm4', name: 'Luka Modric', position: 'CM', overall: 86, age: 38, height: 172, weight: 66, nationality: 'Croatia', teamId: 'mock-real-madrid', team: 'Real Madrid', vision: 92, 'ball control': 90 },
-  { id: 'm5', name: 'Antonio Rüdiger', position: 'CB', overall: 85, age: 31, height: 190, weight: 85, nationality: 'Germany', teamId: 'mock-real-madrid', team: 'Real Madrid', strength: 90, aggression: 92, 'standing tackle': 87 },
-  { id: 'm6', name: 'Rodrygo', position: 'RW', overall: 85, age: 23, height: 174, weight: 64, nationality: 'Brazil', teamId: 'mock-real-madrid', team: 'Real Madrid', acceleration: 89, dribbling: 88 },
-];
+import { Language, Translation } from './types';
 
 export const TRANSLATIONS: Record<Language, Translation> = {
   [Language.EN]: {
@@ -46,104 +20,12 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     errorGeneric: "Something went wrong. Please check your credentials.",
     successLogin: "Successfully logged in!",
     signOut: "Sign Out",
-    dashboardTitle: "Manager Dashboard",
-    dashboardText: "Your career data is now synced securely in the cloud.",
     secureAccess: "Secure Access",
     newCareer: "New Career",
-    
-    // Dashboard
-    hello: "Hello",
-    navHome: "Home",
-    navSquad: "Database",
-    navMarket: "Transfers",
-    navSettings: "Settings",
 
-    // Home
-    addTeam: "Add Team",
-    createCareer: "Start a new journey",
-    continueCareer: "Continue Career",
-    lastPlayed: "Last played",
-    season: "Season",
-    activeCareer: "Active Career",
-    makeActive: "Set as Active Career",
-    managerName: "Manager Name",
-    selectTeam: "Select Team",
-    endSeason: "End Season (+1 Age)",
-    seasonEnded: "Season ended. Players aged up.",
-    confirmEndSeason: "Are you sure you want to end the season? All players in this career will age by 1 year.",
-    createCustomTeam: "Create Custom Team",
-    customTeamCreated: "Custom team and mock players created!",
-
-    // Squad Management
-    squadList: "Squad List",
-    goalkeepers: "Goalkeepers",
-    defenders: "Defenders",
-    midfielders: "Midfielders",
-    forwards: "Forwards",
-    sellPlayer: "Sell",
-    playerSold: "Player released to Free Agents",
-    updateOverall: "Update Overall",
-    newOverall: "New Ovr",
-    statsSaved: "Stats saved for this career.",
-    homegrown: "Homegrown",
-    nonEu: "Non-EU",
-    nationality: "Nationality",
-
-    // Stats
-    statsTotalPlayers: "Squad Size",
-    statsAvgAge: "Avg Age",
-    statsHomegrown: "Homegrown",
-    statsNonEu: "Non-EU",
-    statsOver22: "Over 22",
-    statsSeasonalGrowth: "Seas. +/-",
-
-    // Generic
-    editProfile: "Edit Profile",
-    appearance: "Appearance",
-    language: "Language",
-    preferences: "Career Preferences",
-
-    // Settings specific
-    currency: "Currency",
-    wageFrequency: "Wage Frequency",
-    weekly: "Weekly",
-    yearly: "Yearly",
-    measurements: "Measurements",
-    metric: "Metric (cm/kg)",
-    imperial: "Imperial (ft/lbs)",
-
-    // Profile
-    profileTitle: "User Profile",
-    changePhoto: "Change Photo",
-    deletePhoto: "Remove Photo",
-    nickname: "Nickname",
-    save: "Save",
-    cancel: "Cancel",
-    edit: "Edit",
-    photoUpdated: "Photo updated successfully",
-    photoDeleted: "Photo removed",
-    nameUpdated: "Nickname updated",
-    clickToUpload: "Tap to upload",
-
-    // Database
-    dbPlayers: "Players",
-    dbTeams: "Teams",
-    dbLeagues: "Leagues",
-    searchPlaceholder: "Search database...",
-    noResults: "No results found.",
-    deleteConfirm: "Are you sure you want to delete this item?",
-    deleteCareerConfirm: "Are you sure? This will delete the career save permanently.",
-    deleteCareerTitle: "Delete Career",
-    deleteAction: "Delete",
-    itemDeleted: "Item deleted.",
-    itemUpdated: "Item updated.",
-    editName: "Edit Name",
-    statsTitle: "Scout Report",
-    physical: "Physical",
-    technical: "Technical",
-    defending: "Defending",
-    goalkeeping: "Goalkeeping",
-    mental: "Mental"
+    // Rework
+    workInProgress: "Work In Progress",
+    reworkMessage: "The dashboard is currently under construction for a complete rework.",
   },
   [Language.IT]: {
     welcome: "Benvenuto su MCM+",
@@ -163,103 +45,11 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     errorGeneric: "Qualcosa è andato storto. Controlla le tue credenziali.",
     successLogin: "Accesso effettuato con successo!",
     signOut: "Disconnetti",
-    dashboardTitle: "Dashboard Manager",
-    dashboardText: "I dati della tua carriera sono ora sincronizzati nel cloud.",
     secureAccess: "Accesso Sicuro",
     newCareer: "Nuova Carriera",
 
-    // Dashboard
-    hello: "Ciao",
-    navHome: "Home",
-    navSquad: "Database",
-    navMarket: "Mercato",
-    navSettings: "Impostazioni",
-
-    // Home
-    addTeam: "Aggiungi Squadra",
-    createCareer: "Inizia un nuovo viaggio",
-    continueCareer: "Continua Carriera",
-    lastPlayed: "Ultimo accesso",
-    season: "Stagione",
-    activeCareer: "Carriera Attiva",
-    makeActive: "Imposta come Carriera Attiva",
-    managerName: "Nome Allenatore",
-    selectTeam: "Seleziona Squadra",
-    endSeason: "Termina Stagione (+1 Età)",
-    seasonEnded: "Stagione terminata. Età giocatori aggiornata.",
-    confirmEndSeason: "Sei sicuro di voler terminare la stagione? Tutti i giocatori di questa carriera invecchieranno di 1 anno.",
-    createCustomTeam: "Crea Squadra Personalizzata",
-    customTeamCreated: "Squadra personalizzata e giocatori creati!",
-
-    // Squad Management
-    squadList: "Rosa Squadra",
-    goalkeepers: "Portieri",
-    defenders: "Difensori",
-    midfielders: "Centrocampisti",
-    forwards: "Attaccanti",
-    sellPlayer: "Vendi",
-    playerSold: "Giocatore svincolato tra i Free Agents",
-    updateOverall: "Aggiorna Overall",
-    newOverall: "Nuovo Ovr",
-    statsSaved: "Statistiche salvate per questa carriera.",
-    homegrown: "Vivaio Club",
-    nonEu: "Extracomunitario",
-    nationality: "Nazionalità",
-
-    // Stats
-    statsTotalPlayers: "Rosa",
-    statsAvgAge: "Età Media",
-    statsHomegrown: "Vivaio",
-    statsNonEu: "Extra-UE",
-    statsOver22: "Over 22",
-    statsSeasonalGrowth: "+/- Stag.",
-
-    // Generic
-    editProfile: "Modifica Profilo",
-    appearance: "Aspetto",
-    language: "Lingua",
-    preferences: "Preferenze Carriera",
-
-    // Settings specific
-    currency: "Valuta",
-    wageFrequency: "Frequenza Ingaggi",
-    weekly: "Settimanale",
-    yearly: "Annuale",
-    measurements: "Unità di Misura",
-    metric: "Metrico (cm/kg)",
-    imperial: "Imperiale (ft/lbs)",
-
-    // Profile
-    profileTitle: "Profilo Utente",
-    changePhoto: "Cambia Foto",
-    deletePhoto: "Rimuovi Foto",
-    nickname: "Nickname",
-    save: "Salva",
-    cancel: "Annulla",
-    edit: "Modifica",
-    photoUpdated: "Foto aggiornata con successo",
-    photoDeleted: "Foto rimossa",
-    nameUpdated: "Nickname aggiornato",
-    clickToUpload: "Tocca per caricare",
-
-    // Database
-    dbPlayers: "Giocatori",
-    dbTeams: "Squadre",
-    dbLeagues: "Campionati",
-    searchPlaceholder: "Cerca nel database...",
-    noResults: "Nessun risultato trovato.",
-    deleteConfirm: "Sei sicuro di voler eliminare questo elemento?",
-    deleteCareerConfirm: "Sei sicuro? Questo eliminerà definitivamente il salvataggio della carriera.",
-    deleteCareerTitle: "Elimina Carriera",
-    deleteAction: "Elimina",
-    itemDeleted: "Elemento eliminato.",
-    itemUpdated: "Elemento aggiornato.",
-    editName: "Modifica Nome",
-    statsTitle: "Report Scout",
-    physical: "Fisico",
-    technical: "Tecnico",
-    defending: "Difesa",
-    goalkeeping: "Portiere",
-    mental: "Mentale"
+    // Rework
+    workInProgress: "Lavori in Corso",
+    reworkMessage: "La dashboard è attualmente in costruzione per un rework completo.",
   }
 };
