@@ -9,12 +9,17 @@ import {
   PhotoIcon, 
   DocumentTextIcon, 
   CameraIcon, 
-  CheckCircleIcon
+  CheckCircleIcon,
+  XMarkIcon,
+  HomeIcon,
+  GlobeEuropeAfricaIcon
 } from '@heroicons/react/24/outline';
 import { GoogleGenAI } from "@google/genai";
 import { Career, Player } from '../types';
 import { compressImage } from '../utils/helpers';
 import { GlassCard, Button, ConfirmationModal, InputField } from '../components/SharedUI';
+
+// --- Components ---
 
 const PlayerCard: React.FC<{ player: Player; onEdit: () => void; onDelete: () => void }> = ({ player, onEdit, onDelete }) => {
   let ovrColor = "bg-red-500 text-white";
@@ -32,6 +37,8 @@ const PlayerCard: React.FC<{ player: Player; onEdit: () => void; onDelete: () =>
         <div className="flex items-center gap-2 text-xs opacity-60">
            <span className="font-mono bg-obsidian/10 dark:bg-ghost/10 px-1 rounded">{player.position}</span>
            <span>• {player.age}yo</span>
+           {player.isHomegrown && <HomeIcon className="w-3 h-3 text-mint" title="Homegrown" />}
+           {player.isNonEU && <GlobeEuropeAfricaIcon className="w-3 h-3 text-orange-500" title="Non-EU" />}
         </div>
       </div>
       <div className="flex gap-2 shrink-0">
@@ -54,8 +61,47 @@ const PlayerCard: React.FC<{ player: Player; onEdit: () => void; onDelete: () =>
   );
 };
 
+const NumberSelectionModal = ({ isOpen, onClose, title, min, max, onSelect, selectedValue }: any) => {
+  if (!isOpen) return null;
+
+  const numbers = Array.from({ length: max - min + 1 }, (_, i) => min + i);
+
+  return (
+    <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+      <div className="bg-white dark:bg-obsidian border border-white/10 w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden animate-scale-in flex flex-col max-h-[70vh]">
+        
+        <div className="p-4 border-b border-obsidian/5 dark:border-ghost/5 flex justify-between items-center bg-white/50 dark:bg-black/50 backdrop-blur-md">
+          <h3 className="font-black text-lg">{title}</h3>
+          <button onClick={onClose} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5">
+            <XMarkIcon className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto p-4 grid grid-cols-5 gap-2">
+          {numbers.map((num) => (
+            <button
+              key={num}
+              onClick={() => { onSelect(num); onClose(); }}
+              className={`
+                py-3 rounded-xl font-bold text-sm transition-all duration-200
+                ${num === selectedValue 
+                  ? 'bg-mint text-obsidian shadow-lg scale-105 ring-2 ring-mint/50' 
+                  : 'bg-black/5 dark:bg-white/5 text-obsidian dark:text-ghost hover:bg-black/10 dark:hover:bg-white/10'}
+              `}
+            >
+              {num}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const EditPlayerModal = ({ isOpen, onClose, player, onSave, t }: any) => {
   const [formData, setFormData] = useState<Player | null>(null);
+  // State to track which picker is open: 'age', 'overall', or null
+  const [activePicker, setActivePicker] = useState<'age' | 'overall' | null>(null);
 
   useEffect(() => {
     if (player) {
@@ -72,53 +118,108 @@ const EditPlayerModal = ({ isOpen, onClose, player, onSave, t }: any) => {
   if (!isOpen || !formData) return null;
 
   const roleOptions = [
-    { label: 'POR', value: 'GK', class: 'bg-yellow-500/20 text-yellow-600 border-yellow-500/50' },
-    { label: 'DIF', value: 'DEF', class: 'bg-blue-500/20 text-blue-600 border-blue-500/50' },
-    { label: 'CEN', value: 'MID', class: 'bg-green-500/20 text-green-600 border-green-500/50' },
-    { label: 'ATT', value: 'FWD', class: 'bg-red-500/20 text-red-600 border-red-500/50' },
+    { label: 'POR', value: 'GK', class: 'bg-yellow-500 text-obsidian border-yellow-400' },
+    { label: 'DIF', value: 'DEF', class: 'bg-blue-500 text-white border-blue-400' },
+    { label: 'CEN', value: 'MID', class: 'bg-green-500 text-white border-green-400' },
+    { label: 'ATT', value: 'FWD', class: 'bg-red-500 text-white border-red-400' },
   ];
 
   return (
     <div className="fixed inset-0 z-[75] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-      <GlassCard className="w-full max-w-md p-6 space-y-5">
+      
+      {/* Sub-Modal for Number Selection */}
+      <NumberSelectionModal 
+        isOpen={activePicker === 'age'}
+        onClose={() => setActivePicker(null)}
+        title="Select Age"
+        min={14}
+        max={45}
+        selectedValue={formData.age}
+        onSelect={(val: number) => handleChange('age', val)}
+      />
+
+      <NumberSelectionModal 
+        isOpen={activePicker === 'overall'}
+        onClose={() => setActivePicker(null)}
+        title="Select Overall"
+        min={50}
+        max={99}
+        selectedValue={formData.overall}
+        onSelect={(val: number) => handleChange('overall', val)}
+      />
+
+      <GlassCard className="w-full max-w-sm p-6 space-y-6 relative">
         <h3 className="text-xl font-bold flex items-center gap-2">
           <PencilIcon className="w-5 h-5 text-mint" />
           {t.editPlayer}
         </h3>
         
-        <InputField 
-           label="Name" 
-           type="text" 
-           value={formData.name} 
-           onChange={(e) => handleChange('name', e.target.value)} 
-        />
+        <div className="space-y-1">
+          <label className="text-xs font-bold opacity-50 uppercase tracking-wider">Name</label>
+          <InputField 
+             label="" 
+             type="text" 
+             value={formData.name} 
+             onChange={(e) => handleChange('name', e.target.value)} 
+          />
+        </div>
         
+        {/* Clickable Inputs for Age/OVR */}
         <div className="grid grid-cols-2 gap-4">
-           <div>
-             <label className="block text-sm font-medium mb-1 opacity-80">Age</label>
-             <input 
-               type="number" 
-               value={formData.age} 
-               onChange={(e) => handleChange('age', parseInt(e.target.value) || 0)}
-               className="w-full px-4 py-3 rounded-lg bg-white/5 border border-obsidian/10 dark:border-ghost/20 focus:border-mint focus:ring-2 focus:ring-mint/50 outline-none text-center font-mono"
-             />
+           <div className="space-y-1">
+             <label className="text-xs font-bold opacity-50 uppercase tracking-wider">Age</label>
+             <button 
+               onClick={() => setActivePicker('age')}
+               className="w-full py-4 rounded-xl bg-black/5 dark:bg-white/5 border border-transparent hover:border-mint transition-all font-black text-2xl text-center"
+             >
+               {formData.age}
+             </button>
            </div>
-           <div>
-             <label className="block text-sm font-medium mb-1 opacity-80">OVR</label>
-             <input 
-               type="number" 
-               value={formData.overall} 
-               onChange={(e) => handleChange('overall', parseInt(e.target.value) || 0)}
-               className="w-full px-4 py-3 rounded-lg bg-white/5 border border-obsidian/10 dark:border-ghost/20 focus:border-mint focus:ring-2 focus:ring-mint/50 outline-none text-center font-mono font-bold"
-             />
+           
+           <div className="space-y-1">
+             <label className="text-xs font-bold opacity-50 uppercase tracking-wider">Overall</label>
+             <button 
+               onClick={() => setActivePicker('overall')}
+               className="w-full py-4 rounded-xl bg-black/5 dark:bg-white/5 border border-transparent hover:border-mint transition-all font-black text-2xl text-center"
+             >
+               {formData.overall}
+             </button>
            </div>
         </div>
 
-        <div>
-           <label className="block text-sm font-medium mb-2 opacity-80">Ruolo / Position</label>
+        {/* Attributes Toggles */}
+        <div className="grid grid-cols-2 gap-4">
+           <button 
+             onClick={() => handleChange('isHomegrown', !formData.isHomegrown)}
+             className={`
+               p-3 rounded-xl flex items-center justify-center gap-2 font-bold text-sm transition-all duration-200 border border-transparent
+               ${formData.isHomegrown 
+                 ? 'bg-mint/10 border-mint text-mint-text' 
+                 : 'bg-black/5 dark:bg-white/5 opacity-60 hover:opacity-100'}
+             `}
+           >
+             <HomeIcon className={`w-5 h-5 ${formData.isHomegrown ? 'text-mint' : ''}`} />
+             {t.homegrown}
+           </button>
+
+           <button 
+             onClick={() => handleChange('isNonEU', !formData.isNonEU)}
+             className={`
+               p-3 rounded-xl flex items-center justify-center gap-2 font-bold text-sm transition-all duration-200 border border-transparent
+               ${formData.isNonEU 
+                 ? 'bg-orange-500/10 border-orange-500 text-orange-500' 
+                 : 'bg-black/5 dark:bg-white/5 opacity-60 hover:opacity-100'}
+             `}
+           >
+             <GlobeEuropeAfricaIcon className={`w-5 h-5 ${formData.isNonEU ? 'text-orange-500' : ''}`} />
+             {t.nonEU}
+           </button>
+        </div>
+
+        <div className="space-y-2">
+           <label className="block text-xs font-bold opacity-50 uppercase tracking-wider">Ruolo / Position</label>
            <div className="grid grid-cols-4 gap-2">
               {roleOptions.map((role) => {
-                 // Check if current position matches this role category (simple check)
                  const isActive = 
                     (role.value === 'GK' && ['GK', 'POR', 'P'].includes(formData.position)) ||
                     (role.value === 'DEF' && ['DEF', 'CB', 'LB', 'RB', 'LWB', 'RWB', 'D', 'DC', 'TS', 'TD'].includes(formData.position)) ||
@@ -130,7 +231,7 @@ const EditPlayerModal = ({ isOpen, onClose, player, onSave, t }: any) => {
                     key={role.value}
                     onClick={() => handleChange('position', role.value)}
                     className={`
-                      py-3 rounded-xl font-black text-sm border-2 transition-all
+                      py-3 rounded-xl font-black text-xs border-b-4 transition-all
                       ${isActive ? role.class + ' scale-105 shadow-lg' : 'bg-black/5 dark:bg-white/5 border-transparent opacity-50 hover:opacity-100'}
                     `}
                   >
@@ -141,7 +242,7 @@ const EditPlayerModal = ({ isOpen, onClose, player, onSave, t }: any) => {
            </div>
         </div>
 
-        <div className="flex gap-3 mt-6 pt-2 border-t border-obsidian/5 dark:border-ghost/5">
+        <div className="flex gap-3 mt-6 pt-4 border-t border-obsidian/5 dark:border-ghost/5">
            <Button variant="ghost" onClick={onClose}>{t.cancel}</Button>
            <Button onClick={() => onSave(formData)}>{t.saveChanges}</Button>
         </div>
