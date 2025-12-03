@@ -1,3 +1,4 @@
+
 import { Language, Translation, Team, Player } from './types';
 
 export const STARTING_SEASONS = [
@@ -112,6 +113,12 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     createCareer: "Create Career",
     transferBudget: "Transfer Budget",
     wageBudget: "Wage Budget",
+    editTransferBudget: "Edit Transfer Budget",
+    editWageBudget: "Edit Wage Budget",
+    weekly: "Weekly",
+    yearly: "Yearly",
+    weeklySuffix: "/wk",
+    yearlySuffix: "/yr",
     squadSize: "Squad Size",
     avgAge: "Avg Age",
     over22: "Over 22",
@@ -127,6 +134,8 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     deleteCareer: "Delete Career",
     deleteCareerTitle: "Delete Career?",
     deleteCareerMessage: "Are you sure you want to delete this career? All data will be lost permanently.",
+    endSeasonConfirmTitle: "End Season?",
+    endSeasonConfirmMessage: "This will advance the season and increase all players' age by 1. Do you want to continue?",
     seasonAdvanced: "Season advanced!",
     managerActions: "Manager Actions",
 
@@ -209,6 +218,12 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     createCareer: "Crea Carriera",
     transferBudget: "Budget Trasferimenti",
     wageBudget: "Budget Stipendi",
+    editTransferBudget: "Modifica Budget Trasferimenti",
+    editWageBudget: "Modifica Budget Stipendi",
+    weekly: "Settimanale",
+    yearly: "Annuale",
+    weeklySuffix: "/wk",
+    yearlySuffix: "/yr",
     squadSize: "Rosa",
     avgAge: "Età Media",
     over22: "Over 22",
@@ -224,6 +239,8 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     deleteCareer: "Elimina Carriera",
     deleteCareerTitle: "Eliminare Carriera?",
     deleteCareerMessage: "Sei sicuro di voler eliminare questa carriera? Tutti i dati andranno persi per sempre.",
+    endSeasonConfirmTitle: "Terminare Stagione?",
+    endSeasonConfirmMessage: "Passerai alla stagione successiva e l'età di tutti i giocatori aumenterà di 1 anno. Continuare?",
     seasonAdvanced: "Stagione avanzata!",
     managerActions: "Azioni Manager",
 

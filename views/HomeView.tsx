@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   BriefcaseIcon, 
   CalendarDaysIcon, 
@@ -11,7 +11,8 @@ import {
   GlobeEuropeAfricaIcon, 
   AdjustmentsHorizontalIcon, 
   ForwardIcon, 
-  TrashIcon 
+  TrashIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 import { Career, Team } from '../types';
 import { MOCK_TEAMS, STARTING_SEASONS } from '../constants';
@@ -24,6 +25,14 @@ export const HomeView = ({ t, career, onSaveCareer }: { t: any, career: Career |
   const [customTeamName, setCustomTeamName] = useState('');
   const [startingSeason, setStartingSeason] = useState(STARTING_SEASONS[1]); // Default 2025/2026
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showEndSeasonConfirm, setShowEndSeasonConfirm] = useState(false);
+
+  // Budget Editing States
+  const [editTransferOpen, setEditTransferOpen] = useState(false);
+  const [editWageOpen, setEditWageOpen] = useState(false);
+  const [transferInput, setTransferInput] = useState('');
+  const [wageInput, setWageInput] = useState('');
+  const [isYearlyWage, setIsYearlyWage] = useState(false);
 
   const createCareer = () => {
     let teamData: Team;
@@ -51,7 +60,8 @@ export const HomeView = ({ t, career, onSaveCareer }: { t: any, career: Career |
       wageBudget: teamData.wageBudget,
       players: teamData.players,
       startDate: new Date().toISOString(),
-      season: startingSeason
+      season: startingSeason,
+      wageDisplayMode: 'weekly' // Default to weekly
     };
     
     onSaveCareer(newCareer);
@@ -81,7 +91,95 @@ export const HomeView = ({ t, career, onSaveCareer }: { t: any, career: Career |
       season: nextSeason,
       players: updatedPlayers
     });
+
+    setShowEndSeasonConfirm(false);
   };
+
+  // --- Budget Helpers ---
+
+  // Formats a raw number string (e.g. "10000") into "10.000"
+  const formatInputDisplay = (val: string) => {
+    if (!val) return '';
+    // Remove non-digits first
+    const clean = val.replace(/\D/g, '');
+    return Number(clean).toLocaleString('it-IT');
+  };
+
+  // Handles input change, cleaning non-digits
+  const handleBudgetChange = (val: string, setter: (v: string) => void) => {
+    const clean = val.replace(/\D/g, '');
+    setter(clean);
+  };
+
+  // Handlers for Budget Modals
+  const openTransferModal = () => {
+    if (career) {
+      setTransferInput(career.transferBudget.toString());
+      setEditTransferOpen(true);
+    }
+  };
+
+  const saveTransferBudget = () => {
+    if (career && transferInput) {
+      onSaveCareer({ ...career, transferBudget: Number(transferInput) });
+      setEditTransferOpen(false);
+    }
+  };
+
+  const openWageModal = () => {
+    if (career) {
+      // Determine if we should show yearly or weekly based on persisted preference
+      const isYearly = career.wageDisplayMode === 'yearly';
+      setIsYearlyWage(isYearly);
+      
+      const val = isYearly ? career.wageBudget * 52 : career.wageBudget;
+      setWageInput(val.toString());
+      setEditWageOpen(true);
+    }
+  };
+
+  const toggleWageView = () => {
+    const currentValue = Number(wageInput);
+    if (isYearlyWage) {
+      // Switch to Weekly: Divide by 52
+      setWageInput(Math.round(currentValue / 52).toString());
+    } else {
+      // Switch to Yearly: Multiply by 52
+      setWageInput((currentValue * 52).toString());
+    }
+    setIsYearlyWage(!isYearlyWage);
+  };
+
+  const saveWageBudget = () => {
+    if (career && wageInput) {
+      let finalValue = Number(wageInput);
+      
+      // We always store the WEEKLY value in the DB for consistency
+      if (isYearlyWage) {
+        finalValue = Math.round(finalValue / 52);
+      }
+      
+      // Save the budget AND the display preference
+      onSaveCareer({ 
+        ...career, 
+        wageBudget: finalValue,
+        wageDisplayMode: isYearlyWage ? 'yearly' : 'weekly'
+      });
+      setEditWageOpen(false);
+    }
+  };
+
+  // Helper to get displayed wage for dashboard
+  const getDisplayWage = () => {
+    if (!career) return { value: 0, suffix: t.weeklySuffix };
+    
+    const isYearly = career.wageDisplayMode === 'yearly';
+    if (isYearly) {
+      return { value: career.wageBudget * 52, suffix: t.yearlySuffix };
+    }
+    return { value: career.wageBudget, suffix: t.weeklySuffix };
+  };
+
 
   // If no career, show Wizard
   if (!career) {
@@ -156,6 +254,8 @@ export const HomeView = ({ t, career, onSaveCareer }: { t: any, career: Career |
   const homeGrown = career.players.filter(p => p.isHomegrown).length;
   const nonEU = career.players.filter(p => p.isNonEU).length;
 
+  const displayWageData = getDisplayWage();
+
   // Active Career Dashboard
   return (
     <div className="space-y-6 animate-fade-in pb-20 relative">
@@ -167,6 +267,93 @@ export const HomeView = ({ t, career, onSaveCareer }: { t: any, career: Career |
         onCancel={() => setShowDeleteConfirm(false)}
         t={t}
       />
+
+      <ConfirmationModal 
+        isOpen={showEndSeasonConfirm}
+        title={t.endSeasonConfirmTitle}
+        message={t.endSeasonConfirmMessage}
+        onConfirm={advanceSeason}
+        onCancel={() => setShowEndSeasonConfirm(false)}
+        t={t}
+      />
+
+      {/* Transfer Budget Modal */}
+      {editTransferOpen && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+           <GlassCard className="w-full max-w-sm p-8 space-y-6">
+              <div className="flex justify-between items-center border-b border-obsidian/5 dark:border-ghost/5 pb-4">
+                 <h3 className="text-xl font-bold">{t.editTransferBudget}</h3>
+                 <button onClick={() => setEditTransferOpen(false)}><XMarkIcon className="w-6 h-6" /></button>
+              </div>
+              
+              <div className="flex flex-col items-center justify-center py-6">
+                 <div className="relative w-full">
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 text-2xl font-bold text-green-500 opacity-50">€</span>
+                    <input 
+                      type="text"
+                      inputMode="numeric"
+                      value={formatInputDisplay(transferInput)}
+                      onChange={(e) => handleBudgetChange(e.target.value, setTransferInput)}
+                      className="w-full bg-transparent text-center text-4xl font-black text-green-500 placeholder-green-500/30 outline-none border-none p-0"
+                      placeholder="0"
+                      autoFocus
+                    />
+                 </div>
+              </div>
+
+              <Button onClick={saveTransferBudget}>{t.saveChanges}</Button>
+           </GlassCard>
+        </div>
+      )}
+
+      {/* Wage Budget Modal */}
+      {editWageOpen && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+           <GlassCard className="w-full max-w-sm p-8 space-y-6">
+              <div className="flex justify-between items-center border-b border-obsidian/5 dark:border-ghost/5 pb-4">
+                 <h3 className="text-xl font-bold">{t.editWageBudget}</h3>
+                 <button onClick={() => setEditWageOpen(false)}><XMarkIcon className="w-6 h-6" /></button>
+              </div>
+              
+              <div className="flex justify-center">
+                <div className="bg-black/5 dark:bg-white/5 p-1 rounded-xl flex gap-1">
+                   <button 
+                     onClick={() => isYearlyWage && toggleWageView()}
+                     className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${!isYearlyWage ? 'bg-mint text-obsidian shadow-sm' : 'opacity-50'}`}
+                   >
+                     {t.weekly}
+                   </button>
+                   <button 
+                     onClick={() => !isYearlyWage && toggleWageView()}
+                     className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${isYearlyWage ? 'bg-mint text-obsidian shadow-sm' : 'opacity-50'}`}
+                   >
+                     {t.yearly}
+                   </button>
+                </div>
+              </div>
+
+              <div className="flex flex-col items-center justify-center py-6">
+                 <div className="relative w-full">
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 text-2xl font-bold text-blue-500 opacity-50">€</span>
+                    <input 
+                      type="text"
+                      inputMode="numeric"
+                      value={formatInputDisplay(wageInput)}
+                      onChange={(e) => handleBudgetChange(e.target.value, setWageInput)}
+                      className="w-full bg-transparent text-center text-4xl font-black text-blue-500 placeholder-blue-500/30 outline-none border-none p-0"
+                      placeholder="0"
+                      autoFocus
+                    />
+                 </div>
+                 <span className="text-xs font-bold opacity-50 uppercase tracking-widest mt-2">
+                    {isYearlyWage ? t.yearly : t.weekly}
+                 </span>
+              </div>
+
+              <Button onClick={saveWageBudget}>{t.saveChanges}</Button>
+           </GlassCard>
+        </div>
+      )}
       
       {/* Header Card */}
       <GlassCard className="relative overflow-hidden p-6 text-center border-t-4 border-t-mint">
@@ -191,13 +378,16 @@ export const HomeView = ({ t, career, onSaveCareer }: { t: any, career: Career |
           <CurrencyDollarIcon className="w-5 h-5" /> {t.financials}
         </h3>
         <div className="grid grid-cols-2 gap-4">
-          <GlassCard className="p-5">
+          <GlassCard onClick={openTransferModal} className="p-5 cursor-pointer hover:scale-[1.02] transition-transform">
              <span className="text-xs font-bold opacity-50 uppercase tracking-wider block mb-1">{t.transferBudget}</span>
              <span className="text-2xl font-black text-green-500">{formatMoney(career.transferBudget)}</span>
           </GlassCard>
-          <GlassCard className="p-5">
+          <GlassCard onClick={openWageModal} className="p-5 cursor-pointer hover:scale-[1.02] transition-transform">
              <span className="text-xs font-bold opacity-50 uppercase tracking-wider block mb-1">{t.wageBudget}</span>
-             <span className="text-xl font-black text-blue-500">{formatMoney(career.wageBudget)}<span className="text-xs font-normal opacity-60">/wk</span></span>
+             <span className="text-xl font-black text-blue-500">
+               {formatMoney(displayWageData.value)}
+               <span className="text-xs font-normal opacity-60">{displayWageData.suffix}</span>
+             </span>
           </GlassCard>
         </div>
       </div>
@@ -222,7 +412,7 @@ export const HomeView = ({ t, career, onSaveCareer }: { t: any, career: Career |
           <AdjustmentsHorizontalIcon className="w-5 h-5" /> {t.managerActions}
         </h3>
         <div className="flex flex-col sm:flex-row gap-3">
-          <Button variant="secondary" onClick={advanceSeason} className="gap-2">
+          <Button variant="secondary" onClick={() => setShowEndSeasonConfirm(true)} className="gap-2">
             <ForwardIcon className="w-5 h-5" />
             {t.endSeason}
           </Button>

@@ -1,3 +1,4 @@
+
 export enum Language {
   EN = 'en',
   IT = 'it'
@@ -54,6 +55,7 @@ export interface Career {
   players: Player[];
   startDate: string;
   season: string; // e.g., "2025/2026"
+  wageDisplayMode?: 'weekly' | 'yearly';
 }
 
 export interface Translation {
@@ -113,6 +115,12 @@ export interface Translation {
   createCareer: string;
   transferBudget: string;
   wageBudget: string;
+  editTransferBudget: string;
+  editWageBudget: string;
+  weekly: string;
+  yearly: string;
+  weeklySuffix: string;
+  yearlySuffix: string;
   squadSize: string;
   avgAge: string;
   over22: string;
@@ -128,6 +136,8 @@ export interface Translation {
   deleteCareer: string;
   deleteCareerTitle: string;
   deleteCareerMessage: string;
+  endSeasonConfirmTitle: string;
+  endSeasonConfirmMessage: string;
   seasonAdvanced: string;
   managerActions: string;
 
