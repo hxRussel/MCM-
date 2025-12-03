@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   createUserWithEmailAndPassword, 
@@ -58,7 +60,10 @@ import {
   MagnifyingGlassIcon,
   FunnelIcon,
   ChartBarIcon,
-  UserGroupIcon
+  UserGroupIcon,
+  GlobeEuropeAfricaIcon,
+  AcademicCapIcon,
+  IdentificationIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 
@@ -281,6 +286,7 @@ const generateMockSquad = (teamId: string, teamName: string) => {
         weight: 70 + Math.floor(Math.random() * 20),
         teamId: teamId,
         team: teamName,
+        nationality: 'Unknown',
         acceleration: ovr - 5 + Math.floor(Math.random() * 10),
         'sprint speed': ovr - 5 + Math.floor(Math.random() * 10),
         finishing: p.pos === 'ST' ? ovr : ovr - 20,
@@ -477,8 +483,10 @@ const AddCareerModal = ({ t, userId, onClose }: { t: any, userId: string, onClos
 };
 
 // --- Player Detail Modal ---
-const PlayerDetailModal = ({ player, onClose, t, onSave }: { player: Player, onClose: () => void, t: any, onSave?: (id: string, newOverall: number) => void }) => {
+const PlayerDetailModal = ({ player, onClose, t, onSave }: { player: Player, onClose: () => void, t: any, onSave?: (id: string, updates: any) => void }) => {
   const [editedOverall, setEditedOverall] = useState(player.overall);
+  const [isHomegrown, setIsHomegrown] = useState(!!player.isHomegrown);
+  const [isNonEU, setIsNonEU] = useState(!!player.isNonEU);
 
   if (!player) return null;
 
@@ -552,40 +560,69 @@ const PlayerDetailModal = ({ player, onClose, t, onSave }: { player: Player, onC
   };
 
   const handleSave = () => {
-    if (onSave) onSave(player.id, Number(editedOverall));
+    if (onSave) onSave(player.id, { overall: Number(editedOverall), isHomegrown, isNonEU });
   };
+
+  const diff = editedOverall - player.overall;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 animate-fadeIn">
       <div className="bg-white dark:bg-obsidian w-full max-w-2xl h-[90vh] sm:h-auto max-h-[90vh] rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-slideUp">
         <div className="p-6 bg-gradient-to-br from-mint/20 to-transparent border-b border-obsidian/5 dark:border-ghost/5 flex justify-between items-start">
            <div className="flex gap-4">
-              <div className="w-20 h-20 rounded-full bg-white dark:bg-white/10 flex items-center justify-center text-3xl font-black shadow-lg relative">
+              <div className="w-20 h-20 rounded-full bg-white dark:bg-white/10 flex items-center justify-center text-3xl font-black shadow-lg relative shrink-0">
                  <span className={getOverallColor(editedOverall)}>{editedOverall}</span>
               </div>
-              <div>
+              <div className="flex-1">
                 <h2 className="text-2xl font-black uppercase leading-none mb-1">{player.name}</h2>
-                <div className="flex items-center gap-2 opacity-70 text-sm font-mono">
+                <div className="flex items-center gap-2 opacity-70 text-sm font-mono mb-1">
                   <span className="font-bold bg-obsidian/10 dark:bg-white/10 px-2 py-0.5 rounded">{player.position}</span>
                   <span>{player.team || player['club'] || 'Free Agent'}</span>
                 </div>
+                {player.nationality && (
+                  <div className="flex items-center gap-1.5 text-xs font-bold opacity-60">
+                    <GlobeEuropeAfricaIcon className="w-3.5 h-3.5"/>
+                    <span>{player.nationality}</span>
+                  </div>
+                )}
+                
                 <div className="mt-2 text-xs opacity-50 flex gap-3">
                    <span>{player.age} yo</span>
                    <span>{player.height} cm</span>
                    <span>{player.weight} kg</span>
                 </div>
+
                 {onSave && (
-                   <div className="mt-3 flex items-center gap-2">
-                      <div className="flex items-center gap-1 bg-white/10 rounded-lg p-1">
-                        <span className="text-xs uppercase font-bold px-2">{t.newOverall}</span>
-                        <input 
-                          type="number" 
-                          value={editedOverall} 
-                          onChange={(e) => setEditedOverall(Number(e.target.value))}
-                          className="w-12 bg-black/10 dark:bg-white/20 rounded px-1 py-0.5 text-center text-sm font-bold outline-none focus:ring-1 ring-mint"
-                        />
+                   <div className="mt-4 flex flex-wrap gap-4 items-end">
+                      <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1 bg-white/10 rounded-lg p-1">
+                            <span className="text-xs uppercase font-bold px-2">{t.newOverall}</span>
+                            <input 
+                              type="number" 
+                              value={editedOverall} 
+                              onChange={(e) => setEditedOverall(Number(e.target.value))}
+                              className="w-12 bg-black/10 dark:bg-white/20 rounded px-1 py-0.5 text-center text-sm font-bold outline-none focus:ring-1 ring-mint"
+                            />
+                          </div>
+                          {diff !== 0 && (
+                            <span className={`text-sm font-bold ${diff > 0 ? 'text-green-500' : 'text-red-500'}`}>
+                              {diff > 0 ? '+' : ''}{diff}
+                            </span>
+                          )}
                       </div>
-                      <button onClick={handleSave} className="bg-mint text-obsidian px-3 py-1 rounded-lg text-xs font-bold hover:bg-mint-hover shadow-sm">
+
+                      <div className="flex items-center gap-4">
+                         <label className="flex items-center gap-2 cursor-pointer group">
+                            <input type="checkbox" checked={isHomegrown} onChange={e => setIsHomegrown(e.target.checked)} className="accent-mint w-4 h-4"/>
+                            <div className="text-xs font-bold opacity-70 group-hover:opacity-100 flex items-center gap-1"><AcademicCapIcon className="w-3 h-3"/> {t.homegrown}</div>
+                         </label>
+                         <label className="flex items-center gap-2 cursor-pointer group">
+                            <input type="checkbox" checked={isNonEU} onChange={e => setIsNonEU(e.target.checked)} className="accent-mint w-4 h-4"/>
+                            <div className="text-xs font-bold opacity-70 group-hover:opacity-100 flex items-center gap-1"><IdentificationIcon className="w-3 h-3"/> {t.nonEu}</div>
+                         </label>
+                      </div>
+
+                      <button onClick={handleSave} className="bg-mint text-obsidian px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-mint-hover shadow-sm ml-auto">
                         {t.save}
                       </button>
                    </div>
@@ -661,7 +698,9 @@ const CareerDetailModal = ({ career, t, onClose, userId }: { career: Career, t: 
            return {
              ...p,
              age: p.age + (career.seasonOffset || 0),
-             overall: override?.overall || p.overall
+             overall: override?.overall ?? p.overall,
+             isHomegrown: override?.isHomegrown ?? p.isHomegrown ?? false,
+             isNonEU: override?.isNonEU ?? p.isNonEU ?? false
            };
         });
 
@@ -760,18 +799,21 @@ const CareerDetailModal = ({ career, t, onClose, userId }: { career: Career, t: 
     }
   };
 
-  const handleSavePlayerStats = async (playerId: string, newOverall: number) => {
+  const handleSavePlayerStats = async (playerId: string, updates: any) => {
     if (career.id === MOCK_CAREER.id) {
-       setPlayers(prev => prev.map(p => p.id === playerId ? { ...p, overall: newOverall } : p));
+       setPlayers(prev => prev.map(p => p.id === playerId ? { ...p, ...updates } : p));
        setSelectedPlayerForEdit(null);
        alert("Mock stats updated locally.");
        return;
     }
 
     try {
-       await updateDoc(doc(db, 'careers', career.id), {
-         [`playerOverrides.${playerId}.overall`]: newOverall
-       });
+       const updateData: any = {};
+       if (updates.overall !== undefined) updateData[`playerOverrides.${playerId}.overall`] = updates.overall;
+       if (updates.isHomegrown !== undefined) updateData[`playerOverrides.${playerId}.isHomegrown`] = updates.isHomegrown;
+       if (updates.isNonEU !== undefined) updateData[`playerOverrides.${playerId}.isNonEU`] = updates.isNonEU;
+
+       await updateDoc(doc(db, 'careers', career.id), updateData);
        setSelectedPlayerForEdit(null);
        alert(t.statsSaved);
     } catch (e) {
@@ -811,12 +853,16 @@ const CareerDetailModal = ({ career, t, onClose, userId }: { career: Career, t: 
                     </div>
                  </div>
               </div>
-              <button 
-                onClick={(e) => { e.stopPropagation(); handleSellPlayer(p.id); }}
-                className="text-red-400 bg-red-500/10 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-500/20 transition-colors"
-              >
-                {t.sellPlayer}
-              </button>
+              <div className="flex items-center gap-2">
+                {p.isHomegrown && <AcademicCapIcon className="w-4 h-4 text-mint" title={t.homegrown} />}
+                {p.isNonEU && <IdentificationIcon className="w-4 h-4 text-yellow-500" title={t.nonEu} />}
+                <button 
+                  onClick={(e) => { e.stopPropagation(); handleSellPlayer(p.id); }}
+                  className="text-red-400 bg-red-500/10 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-500/20 transition-colors ml-2"
+                >
+                  {t.sellPlayer}
+                </button>
+              </div>
            </div>
          ))}
       </div>

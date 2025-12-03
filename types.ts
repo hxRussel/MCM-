@@ -1,4 +1,5 @@
 
+
 export enum Language {
   EN = 'en',
   IT = 'it'
@@ -52,7 +53,7 @@ export interface Career {
   rating: number; // 0-5 stars
   isActive: boolean;
   logoUrl?: string; // Optional
-  playerOverrides?: Record<string, { overall?: number }>; // Stores local changes to players (ID -> changes)
+  playerOverrides?: Record<string, { overall?: number; isHomegrown?: boolean; isNonEU?: boolean }>; // Stores local changes to players
 }
 
 export interface Team {
@@ -73,6 +74,8 @@ export interface Player {
   height: number;
   weight: number;
   nationality?: string;
+  isHomegrown?: boolean;
+  isNonEU?: boolean;
   // Stats
   acceleration?: number;
   'sprint speed'?: number;
@@ -144,6 +147,9 @@ export interface Translation {
   updateOverall: string;
   newOverall: string;
   statsSaved: string;
+  homegrown: string;
+  nonEu: string;
+  nationality: string;
   
   // Generic
   editProfile: string;

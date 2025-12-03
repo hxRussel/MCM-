@@ -18,12 +18,12 @@ export const MOCK_CAREER: Career = {
 };
 
 export const MOCK_PLAYERS: Player[] = [
-  { id: 'm1', name: 'Vinicius Jr', position: 'LW', overall: 89, age: 23, height: 176, weight: 73, teamId: 'mock-real-madrid', team: 'Real Madrid', acceleration: 95, 'sprint speed': 95, dribbling: 90, finishing: 84 },
-  { id: 'm2', name: 'Jude Bellingham', position: 'CAM', overall: 87, age: 20, height: 186, weight: 75, teamId: 'mock-real-madrid', team: 'Real Madrid', vision: 88, 'short passing': 89, stamina: 92 },
-  { id: 'm3', name: 'Thibaut Courtois', position: 'GK', overall: 90, age: 31, height: 200, weight: 96, teamId: 'mock-real-madrid', team: 'Real Madrid', 'gk diving': 85, 'gk reflexes': 93 },
-  { id: 'm4', name: 'Luka Modric', position: 'CM', overall: 86, age: 38, height: 172, weight: 66, teamId: 'mock-real-madrid', team: 'Real Madrid', vision: 92, 'ball control': 90 },
-  { id: 'm5', name: 'Antonio Rüdiger', position: 'CB', overall: 85, age: 31, height: 190, weight: 85, teamId: 'mock-real-madrid', team: 'Real Madrid', strength: 90, aggression: 92, 'standing tackle': 87 },
-  { id: 'm6', name: 'Rodrygo', position: 'RW', overall: 85, age: 23, height: 174, weight: 64, teamId: 'mock-real-madrid', team: 'Real Madrid', acceleration: 89, dribbling: 88 },
+  { id: 'm1', name: 'Vinicius Jr', position: 'LW', overall: 89, age: 23, height: 176, weight: 73, nationality: 'Brazil', teamId: 'mock-real-madrid', team: 'Real Madrid', acceleration: 95, 'sprint speed': 95, dribbling: 90, finishing: 84 },
+  { id: 'm2', name: 'Jude Bellingham', position: 'CAM', overall: 87, age: 20, height: 186, weight: 75, nationality: 'England', teamId: 'mock-real-madrid', team: 'Real Madrid', vision: 88, 'short passing': 89, stamina: 92 },
+  { id: 'm3', name: 'Thibaut Courtois', position: 'GK', overall: 90, age: 31, height: 200, weight: 96, nationality: 'Belgium', teamId: 'mock-real-madrid', team: 'Real Madrid', 'gk diving': 85, 'gk reflexes': 93 },
+  { id: 'm4', name: 'Luka Modric', position: 'CM', overall: 86, age: 38, height: 172, weight: 66, nationality: 'Croatia', teamId: 'mock-real-madrid', team: 'Real Madrid', vision: 92, 'ball control': 90 },
+  { id: 'm5', name: 'Antonio Rüdiger', position: 'CB', overall: 85, age: 31, height: 190, weight: 85, nationality: 'Germany', teamId: 'mock-real-madrid', team: 'Real Madrid', strength: 90, aggression: 92, 'standing tackle': 87 },
+  { id: 'm6', name: 'Rodrygo', position: 'RW', overall: 85, age: 23, height: 174, weight: 64, nationality: 'Brazil', teamId: 'mock-real-madrid', team: 'Real Madrid', acceleration: 89, dribbling: 88 },
 ];
 
 export const TRANSLATIONS: Record<Language, Translation> = {
@@ -84,6 +84,9 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     updateOverall: "Update Overall",
     newOverall: "New Ovr",
     statsSaved: "Stats saved for this career.",
+    homegrown: "Homegrown",
+    nonEu: "Non-EU",
+    nationality: "Nationality",
 
     // Generic
     editProfile: "Edit Profile",
@@ -190,6 +193,9 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     updateOverall: "Aggiorna Overall",
     newOverall: "Nuovo Ovr",
     statsSaved: "Statistiche salvate per questa carriera.",
+    homegrown: "Vivaio Club",
+    nonEu: "Extracomunitario",
+    nationality: "Nazionalità",
 
     // Generic
     editProfile: "Modifica Profilo",
