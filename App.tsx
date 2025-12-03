@@ -8,7 +8,8 @@ import {
   updateProfile,
   User 
 } from 'firebase/auth';
-import { auth } from './services/firebase';
+import { doc, setDoc, onSnapshot } from 'firebase/firestore';
+import { auth, db } from './services/firebase';
 import { Language, Theme, View, Career, Team } from './types';
 import { TRANSLATIONS, MOCK_TEAMS, STARTING_SEASONS } from './constants';
 import { 
@@ -280,7 +281,7 @@ const StatCard = ({ icon: Icon, value, label, colorClass = "text-obsidian dark:t
 
 // --- Views ---
 
-const HomeView = ({ t, career, setCareer }: { t: any, career: Career | null, setCareer: (c: Career | null) => void }) => {
+const HomeView = ({ t, career, onSaveCareer }: { t: any, career: Career | null, onSaveCareer: (c: Career | null) => void }) => {
   const [managerName, setManagerName] = useState('');
   const [selectedTeamId, setSelectedTeamId] = useState('');
   const [customTeamName, setCustomTeamName] = useState('');
@@ -316,11 +317,11 @@ const HomeView = ({ t, career, setCareer }: { t: any, career: Career | null, set
       season: startingSeason
     };
     
-    setCareer(newCareer);
+    onSaveCareer(newCareer);
   };
 
   const deleteCareer = () => {
-    setCareer(null);
+    onSaveCareer(null);
     setShowDeleteConfirm(false);
   };
 
@@ -338,7 +339,7 @@ const HomeView = ({ t, career, setCareer }: { t: any, career: Career | null, set
     }));
 
     // Update career state
-    setCareer({
+    onSaveCareer({
       ...career,
       season: nextSeason,
       players: updatedPlayers
@@ -499,7 +500,7 @@ const HomeView = ({ t, career, setCareer }: { t: any, career: Career | null, set
   );
 };
 
-const ProfileView = ({ user, handleLogout, t, avatar, setAvatar }: any) => {
+const ProfileView = ({ user, handleLogout, t, avatar, onSaveAvatar, onSaveProfile }: any) => {
   const [viewMode, setViewMode] = useState<'main' | 'settings'>('main');
   const [isEditing, setIsEditing] = useState(false);
   const [newName, setNewName] = useState(user?.displayName || '');
@@ -511,8 +512,8 @@ const ProfileView = ({ user, handleLogout, t, avatar, setAvatar }: any) => {
       const file = e.target.files[0];
       try {
         const compressed = await compressImage(file);
-        setAvatar(compressed);
-        localStorage.setItem(`avatar_${user.uid}`, compressed);
+        // Save to Firestore via parent handler
+        onSaveAvatar(compressed);
       } catch (err) {
         console.error("Image processing failed", err);
       }
@@ -520,8 +521,8 @@ const ProfileView = ({ user, handleLogout, t, avatar, setAvatar }: any) => {
   };
 
   const deleteAvatar = () => {
-    setAvatar(null);
-    localStorage.removeItem(`avatar_${user.uid}`);
+    // Save to Firestore via parent handler
+    onSaveAvatar(null);
     setShowDeleteConfirm(false);
   };
 
@@ -533,6 +534,8 @@ const ProfileView = ({ user, handleLogout, t, avatar, setAvatar }: any) => {
     if (user && newName.trim() !== '') {
       try {
         await updateProfile(user, { displayName: newName });
+        // Sync nickname to Firestore
+        onSaveProfile(newName);
         setIsEditing(false);
       } catch (error) {
         console.error("Error updating profile", error);
@@ -687,25 +690,76 @@ export default function App() {
     return () => mediaQuery.removeEventListener('change', handleSystemChange);
   }, [theme]);
 
-  // Auth Listener & Avatar Load
+  // Auth & Cloud Sync Listener
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    let unsubscribeSnapshot: () => void;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       setLoading(false);
       
       if (currentUser) {
-        const savedAvatar = localStorage.getItem(`avatar_${currentUser.uid}`);
-        if (savedAvatar) {
-          setAvatar(savedAvatar);
-        } else {
-          setAvatar(null);
-        }
+        // Subscribe to Firestore document to sync data in real-time
+        const userRef = doc(db, 'users', currentUser.uid);
+        unsubscribeSnapshot = onSnapshot(userRef, (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            setCareer(data.career || null);
+            setAvatar(data.avatar || null);
+          } else {
+            setCareer(null);
+            setAvatar(null);
+          }
+        }, (error) => {
+           console.error("Error syncing data:", error);
+        });
+      } else {
+        setCareer(null);
+        setAvatar(null);
       }
     });
-    return () => unsubscribe();
+
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeSnapshot) unsubscribeSnapshot();
+    };
   }, []);
 
-  // Handlers
+  // Handlers for Firestore Persistence
+  const handleSaveCareer = async (newCareer: Career | null) => {
+    // Optimistic UI update
+    setCareer(newCareer);
+    if (user) {
+      try {
+        await setDoc(doc(db, 'users', user.uid), { career: newCareer }, { merge: true });
+      } catch (err) {
+        console.error("Failed to save career to cloud", err);
+      }
+    }
+  };
+
+  const handleSaveAvatar = async (newAvatar: string | null) => {
+    // Optimistic UI update
+    setAvatar(newAvatar);
+    if (user) {
+      try {
+        await setDoc(doc(db, 'users', user.uid), { avatar: newAvatar }, { merge: true });
+      } catch (err) {
+        console.error("Failed to save avatar to cloud", err);
+      }
+    }
+  };
+
+  const handleSaveProfile = async (displayName: string) => {
+    if (user) {
+      try {
+        await setDoc(doc(db, 'users', user.uid), { nickname: displayName }, { merge: true });
+      } catch (err) {
+        console.error("Failed to save profile to cloud", err);
+      }
+    }
+  };
+
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -731,10 +785,11 @@ export default function App() {
   const handleLogout = async () => { 
     await signOut(auth); 
     setAvatar(null);
-    setCareer(null); // Reset career state on logout
+    setCareer(null); 
   };
 
   const handleDevLogin = () => {
+    // Mock user for dev purposes
     const devUser = {
       uid: 'dev-access-bypass',
       email: 'developer@mcm.plus',
@@ -755,8 +810,7 @@ export default function App() {
       providerId: 'dev'
     } as unknown as User;
     setUser(devUser);
-    const savedAvatar = localStorage.getItem(`avatar_${devUser.uid}`);
-    setAvatar(savedAvatar || null);
+    // Dev bypass doesn't sync with Firestore real rules usually
   };
 
   if (loading) {
@@ -799,14 +853,15 @@ export default function App() {
 
         {/* Main Scrollable Content */}
         <main className="pt-24 pb-32 px-6 min-h-screen">
-          {currentView === View.HOME && <HomeView t={t} career={career} setCareer={setCareer} />}
+          {currentView === View.HOME && <HomeView t={t} career={career} onSaveCareer={handleSaveCareer} />}
           {currentView === View.PROFILE && 
             <ProfileView 
               user={user} 
               handleLogout={handleLogout} 
               t={t} 
               avatar={avatar}
-              setAvatar={setAvatar}
+              onSaveAvatar={handleSaveAvatar}
+              onSaveProfile={handleSaveProfile}
             />
           }
           
@@ -855,39 +910,116 @@ export default function App() {
   // --- Login / Register View ---
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden font-sans bg-ghost dark:bg-obsidian text-obsidian dark:text-ghost transition-colors duration-300">
+      
+      {/* Background Gradients */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
         <div className="absolute -top-[20%] -right-[10%] w-[600px] h-[600px] bg-mint/10 dark:bg-mint/5 rounded-full blur-3xl opacity-50"></div>
         <div className="absolute top-[40%] -left-[10%] w-[400px] h-[400px] bg-blue-500/10 dark:bg-blue-500/5 rounded-full blur-3xl opacity-30"></div>
       </div>
-      <div className="absolute top-6 right-6 z-50">
-        <div className="flex items-center gap-1 bg-white/50 dark:bg-black/30 backdrop-blur-md rounded-full p-1.5 border border-obsidian/5 dark:border-ghost/5 shadow-lg shadow-black/5">
-            <div className="flex gap-1">
-              <ToggleButton active={language === Language.IT} onClick={() => setLanguage(Language.IT)}><span className="text-xs font-bold">IT</span></ToggleButton>
-              <ToggleButton active={language === Language.EN} onClick={() => setLanguage(Language.EN)}><span className="text-xs font-bold">EN</span></ToggleButton>
-            </div>
-            <div className="w-px h-5 bg-obsidian/10 dark:bg-ghost/10 mx-1"></div>
-            <div className="flex gap-1">
-              <ToggleButton active={theme === Theme.LIGHT} onClick={() => setTheme(Theme.LIGHT)} title="Light Mode"><SunIcon className="w-4 h-4" /></ToggleButton>
-              <ToggleButton active={theme === Theme.AUTO} onClick={() => setTheme(Theme.AUTO)} title="Auto Mode"><ComputerDesktopIcon className="w-4 h-4" /></ToggleButton>
-              <ToggleButton active={theme === Theme.DARK} onClick={() => setTheme(Theme.DARK)} title="Dark Mode"><MoonIcon className="w-4 h-4" /></ToggleButton>
-            </div>
-        </div>
+
+      {/* Top Bar */}
+      <div className="absolute top-6 right-6 flex gap-3 z-20">
+        <button 
+          onClick={() => setLanguage(language === Language.EN ? Language.IT : Language.EN)}
+          className="px-3 py-1 rounded-full bg-white/5 border border-obsidian/5 dark:border-ghost/10 hover:bg-white/10 text-xs font-bold tracking-wider"
+        >
+          {language.toUpperCase()}
+        </button>
+        <button 
+          onClick={() => setTheme(theme === Theme.DARK ? Theme.LIGHT : Theme.DARK)}
+          className="p-2 rounded-full bg-white/5 border border-obsidian/5 dark:border-ghost/10 hover:bg-white/10"
+        >
+          {theme === Theme.DARK ? <SunIcon className="w-4 h-4" /> : <MoonIcon className="w-4 h-4" />}
+        </button>
       </div>
-      <div className="w-full max-w-md z-10">
-        <div className="text-center mb-8"><h1 className="text-5xl font-black tracking-tighter mb-2 bg-gradient-to-br from-obsidian to-obsidian/60 dark:from-ghost dark:to-ghost/60 bg-clip-text text-transparent">MCM<span className="text-mint">+</span></h1><p className="text-sm font-medium opacity-60 uppercase tracking-widest">{t.subtitle}</p></div>
-        <div className="bg-white/80 dark:bg-black/80 backdrop-blur-xl p-8 rounded-2xl border border-white/20 dark:border-white/5 shadow-2xl transition-all duration-300">
-          <div className="mb-6 flex justify-between items-end"><h2 className="text-2xl font-bold">{isLogin ? t.login : t.register}</h2><span className="text-mint text-xs font-bold uppercase tracking-wider mb-1">{isLogin ? t.secureAccess : t.newCareer}</span></div>
-          {error && (<div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-start gap-3 text-red-600 dark:text-red-400 text-sm"><ExclamationCircleIcon className="w-5 h-5 flex-shrink-0" /><span>{error}</span></div>)}
-          <form onSubmit={handleAuth}>
-            <InputField label={t.email} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="manager@fc.com" disabled={isSubmitting} />
-            <InputField label={t.password} type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" disabled={isSubmitting} />
-            {!isLogin && (<InputField label={t.confirmPassword} type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" disabled={isSubmitting} />)}
-            <Button className="mt-6" disabled={isSubmitting}>{isSubmitting ? t.loading : (isLogin ? t.submitLogin : t.submitRegister)}</Button>
-          </form>
-          <div className="mt-6 text-center text-sm"><span className="opacity-60">{isLogin ? t.noAccount : t.haveAccount} </span><button onClick={() => { setIsLogin(!isLogin); setError(null); }} className="font-bold text-mint hover:underline">{isLogin ? t.switchRegister : t.switchLogin}</button></div>
+
+      {/* Main Card */}
+      <div className="w-full max-w-md bg-white/80 dark:bg-black/40 backdrop-blur-2xl border border-white/40 dark:border-white/5 shadow-2xl shadow-mint/5 rounded-3xl p-8 relative animate-fade-in-up">
+        
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-black tracking-tighter mb-2 bg-gradient-to-r from-obsidian to-obsidian/60 dark:from-ghost dark:to-ghost/60 bg-clip-text text-transparent">
+            MCM<span className="text-mint">+</span>
+          </h1>
+          <p className="opacity-60 text-sm font-medium">{t.subtitle}</p>
         </div>
-        <div className="mt-8 flex justify-center"><button onClick={handleDevLogin} className="group flex items-center gap-2 px-4 py-2 rounded-full bg-black/5 dark:bg-white/5 hover:bg-mint/10 hover:text-mint transition-all duration-300 text-xs font-mono opacity-50 hover:opacity-100"><CommandLineIcon className="w-4 h-4" /><span>Developer Quick Access (Beta)</span></button></div>
+
+        {/* Error Message */}
+        {error && (
+           <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-600 text-sm flex items-start gap-3">
+             <ExclamationCircleIcon className="w-5 h-5 shrink-0" />
+             <span>{error}</span>
+           </div>
+        )}
+
+        {/* Form */}
+        <form onSubmit={handleAuth} className="space-y-4">
+           <InputField 
+             label={t.email}
+             type="email"
+             value={email}
+             onChange={(e) => setEmail(e.target.value)}
+             placeholder="manager@mcm.plus"
+           />
+           
+           <InputField 
+             label={t.password}
+             type="password"
+             value={password}
+             onChange={(e) => setPassword(e.target.value)}
+             placeholder="••••••••"
+           />
+
+           {!isLogin && (
+             <InputField 
+               label={t.confirmPassword}
+               type="password"
+               value={confirmPassword}
+               onChange={(e) => setConfirmPassword(e.target.value)}
+               placeholder="••••••••"
+             />
+           )}
+
+           <Button 
+             variant="primary" 
+             className="mt-6"
+             disabled={isSubmitting}
+           >
+             {isSubmitting ? t.loading : (isLogin ? t.submitLogin : t.submitRegister)}
+           </Button>
+        </form>
+
+        {/* Toggle Mode */}
+        <div className="mt-6 text-center">
+           <p className="text-sm opacity-60">
+             {isLogin ? t.noAccount : t.haveAccount}
+             <button 
+               onClick={() => { setIsLogin(!isLogin); setError(null); }}
+               className="ml-2 font-bold text-mint hover:underline"
+             >
+               {isLogin ? t.switchRegister : t.switchLogin}
+             </button>
+           </p>
+        </div>
+
+        {/* Dev Bypass (Hidden/Discrete) */}
+        <div className="mt-8 pt-6 border-t border-obsidian/5 dark:border-ghost/5 flex justify-center">
+           <button 
+             onClick={handleDevLogin}
+             className="text-xs opacity-30 hover:opacity-100 transition-opacity flex items-center gap-1 font-mono"
+           >
+             <ComputerDesktopIcon className="w-3 h-3" />
+             DEV_ACCESS_V1.0
+           </button>
+        </div>
+
       </div>
+      
+      {/* Footer */}
+      <p className="mt-8 text-xs opacity-30 font-mono">
+        MCM+ v1.0.0 • {t.secureAccess}
+      </p>
+
     </div>
   );
 }
