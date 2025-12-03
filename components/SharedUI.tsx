@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import { EyeIcon, EyeSlashIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 export const InputField = ({ 
   label, 
@@ -180,3 +180,76 @@ export const StatCard = ({ icon: Icon, value, label, colorClass = "text-obsidian
     </div>
   </GlassCard>
 );
+
+export const NumberSelectionModal = ({ isOpen, onClose, title, min, max, onSelect, selectedValue }: any) => {
+  if (!isOpen) return null;
+
+  const numbers = Array.from({ length: max - min + 1 }, (_, i) => min + i);
+
+  return (
+    <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+      <div className="bg-white dark:bg-obsidian border border-white/10 w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden animate-scale-in flex flex-col max-h-[70vh]">
+        
+        <div className="p-4 border-b border-obsidian/5 dark:border-ghost/5 flex justify-between items-center bg-white/50 dark:bg-black/50 backdrop-blur-md">
+          <h3 className="font-black text-lg">{title}</h3>
+          <button onClick={onClose} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5">
+            <XMarkIcon className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto p-4 grid grid-cols-5 gap-2">
+          {numbers.map((num) => (
+            <button
+              key={num}
+              onClick={() => { onSelect(num); onClose(); }}
+              className={`
+                py-3 rounded-xl font-bold text-sm transition-all duration-200
+                ${num === selectedValue 
+                  ? 'bg-mint text-obsidian shadow-lg scale-105 ring-2 ring-mint/50' 
+                  : 'bg-black/5 dark:bg-white/5 text-obsidian dark:text-ghost hover:bg-black/10 dark:hover:bg-white/10'}
+              `}
+            >
+              {num}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export const RoleSelector = ({ value, onChange }: { value: string, onChange: (val: string) => void }) => {
+  const roleOptions = [
+    { label: 'POR', value: 'GK', class: 'bg-yellow-500 text-obsidian border-yellow-400' },
+    { label: 'DIF', value: 'DEF', class: 'bg-blue-500 text-white border-blue-400' },
+    { label: 'CEN', value: 'MID', class: 'bg-green-500 text-white border-green-400' },
+    { label: 'ATT', value: 'FWD', class: 'bg-red-500 text-white border-red-400' },
+  ];
+
+  return (
+    <div className="grid grid-cols-4 gap-2">
+      {roleOptions.map((role) => {
+          // Flexible matching logic for existing players
+          const isActive = 
+            (role.value === 'GK' && ['GK', 'POR', 'P'].includes(value)) ||
+            (role.value === 'DEF' && ['DEF', 'CB', 'LB', 'RB', 'LWB', 'RWB', 'D', 'DC', 'TS', 'TD'].includes(value)) ||
+            (role.value === 'MID' && ['MID', 'CM', 'CDM', 'CAM', 'LM', 'RM', 'C', 'CC', 'MED'].includes(value)) ||
+            (role.value === 'FWD' && ['FWD', 'ST', 'CF', 'LW', 'RW', 'A', 'ATT', 'AS', 'AD'].includes(value)) ||
+            (value === role.value);
+          
+          return (
+          <button
+            key={role.value}
+            onClick={() => onChange(role.value)}
+            className={`
+              py-3 rounded-xl font-black text-xs border-b-4 transition-all
+              ${isActive ? role.class + ' scale-105 shadow-lg' : 'bg-black/5 dark:bg-white/5 border-transparent opacity-50 hover:opacity-100'}
+            `}
+          >
+            {role.label}
+          </button>
+          );
+      })}
+    </div>
+  );
+};

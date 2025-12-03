@@ -163,4 +163,14 @@ export interface Translation {
   releasePlayer: string;
   releaseConfirmTitle: string;
   releaseConfirmMessage: string;
+
+  // Market
+  buyPlayer: string;
+  sellPlayer: string;
+  signingModalTitle: string;
+  playerName: string;
+  transferFee: string;
+  wage: string;
+  confirmSigning: string;
+  fundsError: string;
 }

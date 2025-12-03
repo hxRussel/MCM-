@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   BriefcaseIcon, 
   CalendarDaysIcon, 
@@ -16,7 +16,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { Career, Team } from '../types';
 import { MOCK_TEAMS, STARTING_SEASONS } from '../constants';
-import { formatMoney } from '../utils/helpers';
+import { formatMoney, formatNumberInput, cleanNumberInput } from '../utils/helpers';
 import { GlassCard, Button, InputField, SelectField, ConfirmationModal, StatCard } from '../components/SharedUI';
 
 export const HomeView = ({ t, career, onSaveCareer }: { t: any, career: Career | null, onSaveCareer: (c: Career | null) => void }) => {
@@ -95,22 +95,6 @@ export const HomeView = ({ t, career, onSaveCareer }: { t: any, career: Career |
     setShowEndSeasonConfirm(false);
   };
 
-  // --- Budget Helpers ---
-
-  // Formats a raw number string (e.g. "10000") into "10.000"
-  const formatInputDisplay = (val: string) => {
-    if (!val) return '';
-    // Remove non-digits first
-    const clean = val.replace(/\D/g, '');
-    return Number(clean).toLocaleString('it-IT');
-  };
-
-  // Handles input change, cleaning non-digits
-  const handleBudgetChange = (val: string, setter: (v: string) => void) => {
-    const clean = val.replace(/\D/g, '');
-    setter(clean);
-  };
-
   // Handlers for Budget Modals
   const openTransferModal = () => {
     if (career) {
@@ -121,7 +105,8 @@ export const HomeView = ({ t, career, onSaveCareer }: { t: any, career: Career |
 
   const saveTransferBudget = () => {
     if (career && transferInput) {
-      onSaveCareer({ ...career, transferBudget: Number(transferInput) });
+      const val = Number(cleanNumberInput(transferInput));
+      onSaveCareer({ ...career, transferBudget: val });
       setEditTransferOpen(false);
     }
   };
@@ -139,7 +124,7 @@ export const HomeView = ({ t, career, onSaveCareer }: { t: any, career: Career |
   };
 
   const toggleWageView = () => {
-    const currentValue = Number(wageInput);
+    const currentValue = Number(cleanNumberInput(wageInput));
     if (isYearlyWage) {
       // Switch to Weekly: Divide by 52
       setWageInput(Math.round(currentValue / 52).toString());
@@ -152,7 +137,7 @@ export const HomeView = ({ t, career, onSaveCareer }: { t: any, career: Career |
 
   const saveWageBudget = () => {
     if (career && wageInput) {
-      let finalValue = Number(wageInput);
+      let finalValue = Number(cleanNumberInput(wageInput));
       
       // We always store the WEEKLY value in the DB for consistency
       if (isYearlyWage) {
@@ -292,8 +277,8 @@ export const HomeView = ({ t, career, onSaveCareer }: { t: any, career: Career |
                     <input 
                       type="text"
                       inputMode="numeric"
-                      value={formatInputDisplay(transferInput)}
-                      onChange={(e) => handleBudgetChange(e.target.value, setTransferInput)}
+                      value={formatNumberInput(transferInput)}
+                      onChange={(e) => setTransferInput(cleanNumberInput(e.target.value))}
                       className="w-full bg-transparent text-center text-4xl font-black text-green-500 placeholder-green-500/30 outline-none border-none p-0"
                       placeholder="0"
                       autoFocus
@@ -338,8 +323,8 @@ export const HomeView = ({ t, career, onSaveCareer }: { t: any, career: Career |
                     <input 
                       type="text"
                       inputMode="numeric"
-                      value={formatInputDisplay(wageInput)}
-                      onChange={(e) => handleBudgetChange(e.target.value, setWageInput)}
+                      value={formatNumberInput(wageInput)}
+                      onChange={(e) => setWageInput(cleanNumberInput(e.target.value))}
                       className="w-full bg-transparent text-center text-4xl font-black text-blue-500 placeholder-blue-500/30 outline-none border-none p-0"
                       placeholder="0"
                       autoFocus

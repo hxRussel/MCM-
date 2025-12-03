@@ -161,6 +161,16 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     releasePlayer: "Release Player",
     releaseConfirmTitle: "Release Player?",
     releaseConfirmMessage: "Are you sure? This will remove the player from your squad.",
+
+    // Market
+    buyPlayer: "Buy Player",
+    sellPlayer: "Sell Players",
+    signingModalTitle: "Sign New Player",
+    playerName: "Player Name",
+    transferFee: "Transfer Fee",
+    wage: "Weekly Wage",
+    confirmSigning: "Confirm Signing",
+    fundsError: "Insufficient funds!",
   },
   [Language.IT]: {
     welcome: "Benvenuto su MCM+",
@@ -266,5 +276,15 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     releasePlayer: "Svincola",
     releaseConfirmTitle: "Svincolare Giocatore?",
     releaseConfirmMessage: "Sei sicuro? Il giocatore verrà rimosso dalla rosa.",
+    
+    // Market
+    buyPlayer: "Acquista",
+    sellPlayer: "Cessioni",
+    signingModalTitle: "Acquisto Giocatore",
+    playerName: "Nome e Cognome",
+    transferFee: "Costo Cartellino",
+    wage: "Ingaggio (Settimanale)",
+    confirmSigning: "Conferma Acquisto",
+    fundsError: "Fondi insufficienti!",
   }
 };

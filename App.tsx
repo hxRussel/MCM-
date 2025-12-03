@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import firebase from 'firebase/compat/app';
 import { auth, db } from './services/firebase';
@@ -233,7 +234,7 @@ export default function App() {
         <main className="pt-24 pb-32 px-6 min-h-screen">
           {currentView === View.HOME && <HomeView t={t} career={career} onSaveCareer={handleSaveCareer} />}
           {currentView === View.SQUAD && career && <SquadView t={t} career={career} onUpdateCareer={handleSaveCareer} />}
-          {currentView === View.MARKET && <MarketView t={t} />}
+          {currentView === View.MARKET && career && <MarketView t={t} career={career} onUpdateCareer={handleSaveCareer} />}
           {currentView === View.SETTINGS && <SettingsView t={t} />}
           {currentView === View.PROFILE && 
             <ProfileView 

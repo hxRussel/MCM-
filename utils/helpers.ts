@@ -44,3 +44,13 @@ export const formatMoney = (amount: number) => {
   }
   return `€${amount}`;
 };
+
+export const formatNumberInput = (val: string) => {
+  if (!val) return '';
+  const clean = val.replace(/\D/g, '');
+  return Number(clean).toLocaleString('it-IT');
+};
+
+export const cleanNumberInput = (val: string) => {
+  return val.replace(/\D/g, '');
+};
