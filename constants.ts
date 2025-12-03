@@ -1,5 +1,60 @@
 
-import { Language, Translation } from './types';
+import { Language, Translation, Team, Player } from './types';
+
+export const STARTING_SEASONS = [
+  "2024/2025",
+  "2025/2026",
+  "2026/2027",
+  "2027/2028"
+];
+
+export const MOCK_PLAYERS: Player[] = [
+  { id: '1', name: 'Thibaut Courtois', age: 31, overall: 90, position: 'GK', nationality: 'Belgium', value: 60000000, wage: 250000, isHomegrown: false, isNonEU: false },
+  { id: '2', name: 'Vinícius Jr.', age: 23, overall: 89, position: 'LW', nationality: 'Brazil', value: 120000000, wage: 300000, isHomegrown: false, isNonEU: true },
+  { id: '3', name: 'Jude Bellingham', age: 20, overall: 87, position: 'CAM', nationality: 'England', value: 110000000, wage: 200000, isHomegrown: false, isNonEU: true }, // Counts as Non-EU in some contexts post-Brexit, simplified here
+  { id: '4', name: 'Nacho Fernández', age: 34, overall: 82, position: 'CB', nationality: 'Spain', value: 8000000, wage: 90000, isHomegrown: true, isNonEU: false },
+  { id: '5', name: 'Federico Valverde', age: 25, overall: 88, position: 'CM', nationality: 'Uruguay', value: 90000000, wage: 180000, isHomegrown: false, isNonEU: true },
+  { id: '6', name: 'Dani Carvajal', age: 32, overall: 84, position: 'RB', nationality: 'Spain', value: 15000000, wage: 110000, isHomegrown: true, isNonEU: false },
+  { id: '7', name: 'Rodrygo', age: 23, overall: 85, position: 'RW', nationality: 'Brazil', value: 70000000, wage: 160000, isHomegrown: false, isNonEU: true },
+  { id: '8', name: 'Eduardo Camavinga', age: 21, overall: 82, position: 'CDM', nationality: 'France', value: 60000000, wage: 100000, isHomegrown: false, isNonEU: false },
+  { id: '9', name: 'Luka Modrić', age: 38, overall: 86, position: 'CM', nationality: 'Croatia', value: 5000000, wage: 190000, isHomegrown: false, isNonEU: false },
+  { id: '10', name: 'Fran García', age: 24, overall: 78, position: 'LB', nationality: 'Spain', value: 20000000, wage: 60000, isHomegrown: true, isNonEU: false },
+];
+
+export const MOCK_TEAMS: Team[] = [
+  {
+    id: 't1',
+    name: 'Real Madrid',
+    league: 'La Liga',
+    transferBudget: 120000000,
+    wageBudget: 4500000,
+    players: MOCK_PLAYERS
+  },
+  {
+    id: 't2',
+    name: 'Manchester City',
+    league: 'Premier League',
+    transferBudget: 180000000,
+    wageBudget: 5500000,
+    players: [
+       { id: '11', name: 'Erling Haaland', age: 23, overall: 91, position: 'ST', nationality: 'Norway', value: 150000000, wage: 400000, isHomegrown: false, isNonEU: false },
+       { id: '12', name: 'Phil Foden', age: 23, overall: 86, position: 'RW', nationality: 'England', value: 90000000, wage: 200000, isHomegrown: true, isNonEU: true }, // Brexit logic applied for demo
+       { id: '13', name: 'Kevin De Bruyne', age: 32, overall: 91, position: 'CM', nationality: 'Belgium', value: 60000000, wage: 350000, isHomegrown: false, isNonEU: false },
+       { id: '14', name: 'Rico Lewis', age: 19, overall: 76, position: 'RB', nationality: 'England', value: 15000000, wage: 40000, isHomegrown: true, isNonEU: true },
+    ]
+  },
+  {
+    id: 't3',
+    name: 'Como 1907',
+    league: 'Serie A',
+    transferBudget: 15000000,
+    wageBudget: 500000,
+    players: [
+       { id: '21', name: 'Patrick Cutrone', age: 26, overall: 74, position: 'ST', nationality: 'Italy', value: 6000000, wage: 30000, isHomegrown: true, isNonEU: false },
+       { id: '22', name: 'Alessandro Gabrielloni', age: 29, overall: 70, position: 'ST', nationality: 'Italy', value: 2000000, wage: 15000, isHomegrown: false, isNonEU: false }
+    ]
+  }
+];
 
 export const TRANSLATIONS: Record<Language, Translation> = {
   [Language.EN]: {
@@ -26,7 +81,7 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     // Dashboard
     hello: "Hello",
     searchPlaceholder: "Search players, teams...",
-    continueCareer: "Continue Career",
+    continueCareer: "Active Career",
 
     // Nav
     navHome: "Home",
@@ -47,7 +102,34 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     cancel: "Cancel",
     deleteConfirmTitle: "Delete Photo?",
     deleteConfirmMessage: "Are you sure you want to delete your profile photo? This cannot be undone.",
-    confirm: "Confirm"
+    confirm: "Confirm",
+
+    // Career Creation & Stats
+    startCareer: "Start New Career",
+    managerName: "Manager Name",
+    selectTeam: "Select Team",
+    customTeam: "Create Custom Team",
+    teamName: "Team Name",
+    createCareer: "Create Career",
+    transferBudget: "Transfer Budget",
+    wageBudget: "Wage Budget",
+    squadSize: "Squad Size",
+    avgAge: "Avg Age",
+    over22: "Over 22",
+    homegrown: "Homegrown",
+    nonEU: "Non-EU",
+    statsOverview: "Squad Overview",
+    financials: "Financials",
+
+    // Season & Actions
+    currentSeason: "Current Season",
+    startSeason: "Starting Season",
+    endSeason: "End Season (+1 Age)",
+    deleteCareer: "Delete Career",
+    deleteCareerTitle: "Delete Career?",
+    deleteCareerMessage: "Are you sure you want to delete this career? All data will be lost permanently.",
+    seasonAdvanced: "Season advanced!",
+    managerActions: "Manager Actions"
   },
   [Language.IT]: {
     welcome: "Benvenuto su MCM+",
@@ -73,7 +155,7 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     // Dashboard
     hello: "Ciao",
     searchPlaceholder: "Cerca giocatori, squadre...",
-    continueCareer: "Continua Carriera",
+    continueCareer: "Carriera Attiva",
 
     // Nav
     navHome: "Home",
@@ -94,6 +176,33 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     cancel: "Annulla",
     deleteConfirmTitle: "Eliminare Foto?",
     deleteConfirmMessage: "Sei sicuro di voler eliminare la tua foto profilo? Questa azione non può essere annullata.",
-    confirm: "Conferma"
+    confirm: "Conferma",
+
+    // Career Creation & Stats
+    startCareer: "Inizia Nuova Carriera",
+    managerName: "Nome Allenatore",
+    selectTeam: "Seleziona Squadra",
+    customTeam: "Crea Squadra Personalizzata",
+    teamName: "Nome Squadra",
+    createCareer: "Crea Carriera",
+    transferBudget: "Budget Trasferimenti",
+    wageBudget: "Budget Stipendi",
+    squadSize: "Rosa",
+    avgAge: "Età Media",
+    over22: "Over 22",
+    homegrown: "Vivaio",
+    nonEU: "Extra-UE",
+    statsOverview: "Riepilogo Rosa",
+    financials: "Finanze",
+
+    // Season & Actions
+    currentSeason: "Stagione Corrente",
+    startSeason: "Stagione di Partenza",
+    endSeason: "Termina Stagione (+1 Età)",
+    deleteCareer: "Elimina Carriera",
+    deleteCareerTitle: "Eliminare Carriera?",
+    deleteCareerMessage: "Sei sicuro di voler eliminare questa carriera? Tutti i dati andranno persi per sempre.",
+    seasonAdvanced: "Stagione avanzata!",
+    managerActions: "Azioni Manager"
   }
 };

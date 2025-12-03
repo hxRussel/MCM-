@@ -24,6 +24,39 @@ export interface UserData {
   displayName?: string | null;
 }
 
+export interface Player {
+  id: string;
+  name: string;
+  age: number;
+  overall: number;
+  position: string;
+  nationality: string;
+  value: number;
+  wage: number;
+  isHomegrown: boolean;
+  isNonEU: boolean;
+}
+
+export interface Team {
+  id: string;
+  name: string;
+  league: string;
+  transferBudget: number;
+  wageBudget: number;
+  logoUrl?: string;
+  players: Player[]; // Default roster
+}
+
+export interface Career {
+  managerName: string;
+  teamName: string;
+  transferBudget: number;
+  wageBudget: number;
+  players: Player[];
+  startDate: string;
+  season: string; // e.g., "2025/2026"
+}
+
 export interface Translation {
   // Auth
   welcome: string;
@@ -71,4 +104,31 @@ export interface Translation {
   deleteConfirmTitle: string;
   deleteConfirmMessage: string;
   confirm: string;
+
+  // Career Creation & Stats
+  startCareer: string;
+  managerName: string;
+  selectTeam: string;
+  customTeam: string;
+  teamName: string;
+  createCareer: string;
+  transferBudget: string;
+  wageBudget: string;
+  squadSize: string;
+  avgAge: string;
+  over22: string;
+  homegrown: string;
+  nonEU: string;
+  statsOverview: string;
+  financials: string;
+
+  // Season & Career Management
+  currentSeason: string;
+  startSeason: string;
+  endSeason: string;
+  deleteCareer: string;
+  deleteCareerTitle: string;
+  deleteCareerMessage: string;
+  seasonAdvanced: string;
+  managerActions: string;
 }

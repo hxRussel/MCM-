@@ -9,8 +9,8 @@ import {
   User 
 } from 'firebase/auth';
 import { auth } from './services/firebase';
-import { Language, Theme, View } from './types';
-import { TRANSLATIONS } from './constants';
+import { Language, Theme, View, Career, Team } from './types';
+import { TRANSLATIONS, MOCK_TEAMS, STARTING_SEASONS } from './constants';
 import { 
   SunIcon, 
   MoonIcon, 
@@ -31,7 +31,13 @@ import {
   ArrowLeftIcon,
   CameraIcon,
   TrashIcon,
-  CheckIcon
+  PlusIcon,
+  AcademicCapIcon,
+  GlobeEuropeAfricaIcon,
+  UserPlusIcon,
+  BriefcaseIcon,
+  CalendarDaysIcon,
+  ForwardIcon
 } from '@heroicons/react/24/outline';
 import { 
   HomeIcon as HomeSolid,
@@ -93,6 +99,31 @@ const InputField = ({
   );
 };
 
+const SelectField = ({ label, value, onChange, options, disabled }: any) => (
+  <div className="mb-4">
+    <label className="block text-sm font-medium mb-1 opacity-80">{label}</label>
+    <div className="relative">
+      <select
+        value={value}
+        onChange={onChange}
+        disabled={disabled}
+        className="w-full px-4 py-3 rounded-lg bg-white/5 border border-obsidian/10 dark:border-ghost/20 focus:border-mint focus:ring-2 focus:ring-mint/50 outline-none transition-all duration-200 text-obsidian dark:text-ghost appearance-none"
+      >
+        {options.map((opt: any) => (
+          <option key={opt.value} value={opt.value} className="bg-ghost dark:bg-obsidian text-obsidian dark:text-ghost">
+            {opt.label}
+          </option>
+        ))}
+      </select>
+      <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-50">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+          <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+        </svg>
+      </div>
+    </div>
+  </div>
+);
+
 const Button = ({ 
   onClick, 
   children, 
@@ -112,7 +143,7 @@ const Button = ({
     primary: "bg-mint text-mint-text hover:bg-mint-hover shadow-lg shadow-mint/20",
     secondary: "bg-obsidian text-ghost dark:bg-ghost dark:text-obsidian hover:opacity-90",
     ghost: "bg-transparent text-obsidian dark:text-ghost hover:bg-black/5 dark:hover:bg-white/5",
-    danger: "bg-red-500/10 text-red-600 hover:bg-red-500/20"
+    danger: "bg-red-500/10 text-red-600 hover:bg-red-500/20 border border-red-500/20"
   };
 
   return (
@@ -197,6 +228,15 @@ const compressImage = (file: File): Promise<string> => {
   });
 };
 
+const formatMoney = (amount: number) => {
+  if (amount >= 1000000) {
+    return `€${(amount / 1000000).toFixed(1)}M`;
+  } else if (amount >= 1000) {
+    return `€${(amount / 1000).toFixed(1)}K`;
+  }
+  return `€${amount}`;
+};
+
 // --- Dashboard Components ---
 
 const GlassCard = ({ children, className = '', onClick }: { children?: React.ReactNode, className?: string, onClick?: () => void }) => (
@@ -226,101 +266,235 @@ const NavItem = ({ icon: Icon, solidIcon: SolidIcon, label, active, onClick }: a
   </button>
 );
 
-const Chip = ({ label, active }: { label: string, active?: boolean }) => (
-  <button className={`
-    px-6 py-2.5 rounded-full text-sm font-medium transition-all duration-300 whitespace-nowrap
-    ${active 
-      ? 'bg-obsidian dark:bg-ghost text-ghost dark:text-obsidian shadow-lg' 
-      : 'bg-white/50 dark:bg-white/5 text-obsidian dark:text-ghost hover:bg-white/80 dark:hover:bg-white/10'}
-  `}>
-    {label}
-  </button>
+const StatCard = ({ icon: Icon, value, label, colorClass = "text-obsidian dark:text-ghost" }: any) => (
+  <GlassCard className="p-4 flex flex-col justify-between items-center text-center h-full hover:bg-white/90 dark:hover:bg-black/50 transition-colors">
+    <div className={`p-3 rounded-full bg-white/50 dark:bg-white/5 mb-2 ${colorClass}`}>
+      <Icon className="w-6 h-6" />
+    </div>
+    <div>
+      <span className="text-2xl font-black block tracking-tight">{value}</span>
+      <span className="text-xs font-bold opacity-50 uppercase tracking-widest">{label}</span>
+    </div>
+  </GlassCard>
 );
 
 // --- Views ---
 
-const HomeView = ({ t }: { t: any }) => {
+const HomeView = ({ t, career, setCareer }: { t: any, career: Career | null, setCareer: (c: Career | null) => void }) => {
+  const [managerName, setManagerName] = useState('');
+  const [selectedTeamId, setSelectedTeamId] = useState('');
+  const [customTeamName, setCustomTeamName] = useState('');
+  const [startingSeason, setStartingSeason] = useState(STARTING_SEASONS[1]); // Default 2025/2026
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const createCareer = () => {
+    let teamData: Team;
+    
+    if (selectedTeamId === 'custom') {
+      if (!customTeamName.trim()) return;
+      teamData = {
+        id: 'custom-' + Date.now(),
+        name: customTeamName,
+        league: 'Custom League',
+        transferBudget: 50000000, // Default budget for custom team
+        wageBudget: 100000,
+        players: []
+      };
+    } else {
+      const found = MOCK_TEAMS.find(t => t.id === selectedTeamId);
+      if (!found) return;
+      teamData = found;
+    }
+
+    const newCareer: Career = {
+      managerName: managerName || 'Manager',
+      teamName: teamData.name,
+      transferBudget: teamData.transferBudget,
+      wageBudget: teamData.wageBudget,
+      players: teamData.players,
+      startDate: new Date().toISOString(),
+      season: startingSeason
+    };
+    
+    setCareer(newCareer);
+  };
+
+  const deleteCareer = () => {
+    setCareer(null);
+    setShowDeleteConfirm(false);
+  };
+
+  const advanceSeason = () => {
+    if (!career) return;
+    
+    // Parse current season "YYYY/YYYY"
+    const [startYear, endYear] = career.season.split('/').map(y => parseInt(y));
+    const nextSeason = `${startYear + 1}/${endYear + 1}`;
+
+    // Increment age for all players
+    const updatedPlayers = career.players.map(player => ({
+      ...player,
+      age: player.age + 1
+    }));
+
+    // Update career state
+    setCareer({
+      ...career,
+      season: nextSeason,
+      players: updatedPlayers
+    });
+  };
+
+  // If no career, show Wizard
+  if (!career) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[70vh] animate-fade-in">
+        <GlassCard className="w-full max-w-lg p-8">
+           <div className="text-center mb-8">
+             <div className="w-16 h-16 bg-mint/20 text-mint rounded-2xl flex items-center justify-center mx-auto mb-4">
+               <BriefcaseIcon className="w-8 h-8" />
+             </div>
+             <h2 className="text-3xl font-black">{t.startCareer}</h2>
+             <p className="opacity-60 mt-2">Begin your journey to glory.</p>
+           </div>
+
+           <div className="space-y-4">
+              <InputField 
+                label={t.managerName} 
+                type="text" 
+                value={managerName} 
+                onChange={(e) => setManagerName(e.target.value)} 
+                placeholder="Carlo Ancelotti"
+              />
+
+              <div className="grid grid-cols-2 gap-4">
+                 <SelectField 
+                   label={t.selectTeam}
+                   value={selectedTeamId}
+                   onChange={(e: any) => setSelectedTeamId(e.target.value)}
+                   options={[
+                     { value: '', label: 'Select a team...' },
+                     ...MOCK_TEAMS.map(team => ({ value: team.id, label: team.name })),
+                     { value: 'custom', label: `+ ${t.customTeam}` }
+                   ]}
+                 />
+                 <SelectField 
+                   label={t.startSeason}
+                   value={startingSeason}
+                   onChange={(e: any) => setStartingSeason(e.target.value)}
+                   options={STARTING_SEASONS.map(season => ({ value: season, label: season }))}
+                 />
+              </div>
+
+              {selectedTeamId === 'custom' && (
+                <InputField 
+                  label={t.teamName} 
+                  type="text" 
+                  value={customTeamName} 
+                  onChange={(e) => setCustomTeamName(e.target.value)} 
+                  placeholder="My Dream FC"
+                />
+              )}
+
+              <Button 
+                onClick={createCareer} 
+                disabled={!managerName || !selectedTeamId}
+                className="mt-6"
+              >
+                {t.createCareer}
+              </Button>
+           </div>
+        </GlassCard>
+      </div>
+    );
+  }
+
+  // Calculate Stats
+  const playerCount = career.players.length;
+  const avgAge = playerCount > 0 
+    ? (career.players.reduce((sum, p) => sum + p.age, 0) / playerCount).toFixed(1) 
+    : "0";
+  const over22 = career.players.filter(p => p.age > 22).length;
+  const homeGrown = career.players.filter(p => p.isHomegrown).length;
+  const nonEU = career.players.filter(p => p.isNonEU).length;
+
+  // Active Career Dashboard
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Search Bar */}
-      <div className="relative">
-        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-          <MagnifyingGlassIcon className="h-5 w-5 text-obsidian/40 dark:text-ghost/40" />
+    <div className="space-y-6 animate-fade-in pb-20 relative">
+      <ConfirmationModal 
+        isOpen={showDeleteConfirm}
+        title={t.deleteCareerTitle}
+        message={t.deleteCareerMessage}
+        onConfirm={deleteCareer}
+        onCancel={() => setShowDeleteConfirm(false)}
+        t={t}
+      />
+      
+      {/* Header Card */}
+      <GlassCard className="relative overflow-hidden p-6 text-center border-t-4 border-t-mint">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-mint/10 rounded-full blur-3xl pointer-events-none"></div>
+        <h2 className="text-4xl font-black mb-1">{career.teamName}</h2>
+        <p className="text-lg font-medium opacity-60 mb-6">{career.managerName}</p>
+        <div className="flex justify-center gap-3">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-mint/10 text-mint-text text-xs font-bold uppercase tracking-wider">
+             <span className="w-2 h-2 rounded-full bg-mint animate-pulse"></span>
+             {t.continueCareer}
+          </div>
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 dark:bg-white/5 border border-white/20 text-xs font-bold uppercase tracking-wider">
+             <CalendarDaysIcon className="w-4 h-4" />
+             {career.season}
+          </div>
         </div>
-        <input
-          type="text"
-          placeholder={t.searchPlaceholder}
-          className="w-full pl-11 pr-12 py-4 rounded-full bg-white/50 dark:bg-white/5 border border-white/20 dark:border-white/5 backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-mint/50 transition-all text-obsidian dark:text-ghost placeholder-obsidian/40 dark:placeholder-ghost/40 shadow-sm"
-        />
-        <div className="absolute inset-y-0 right-0 pr-2 flex items-center">
-           <button className="p-2 rounded-full bg-obsidian text-ghost dark:bg-ghost dark:text-obsidian hover:scale-105 transition-transform">
-             <AdjustmentsHorizontalIcon className="h-5 w-5" />
-           </button>
-        </div>
-      </div>
+      </GlassCard>
 
-      {/* Categories */}
-      <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
-        <Chip label="All Careers" active />
-        <Chip label="Premier League" />
-        <Chip label="Serie A" />
-        <Chip label="La Liga" />
-      </div>
-
-      {/* Active Career Hero Card */}
+      {/* Financials */}
       <div>
-        <h3 className="text-xl font-bold mb-4 px-1">{t.continueCareer}</h3>
-        <GlassCard className="relative h-[400px] group cursor-pointer transition-transform duration-300 active:scale-95">
-           {/* Background Image Placeholder */}
-           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/90 z-10"></div>
-           <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center transition-transform duration-700 group-hover:scale-105"></div>
-           
-           <div className="absolute top-4 right-4 z-20">
-             <button className="p-2 rounded-full bg-white/10 backdrop-blur-md text-white hover:bg-white/20 transition-colors">
-               <HeartIcon className="w-6 h-6" />
-             </button>
-           </div>
-
-           <div className="absolute bottom-0 left-0 w-full p-6 z-20 text-white">
-             <span className="text-mint font-bold text-sm tracking-wider uppercase mb-1 block">Season 2025/26</span>
-             <h2 className="text-4xl font-black mb-1">Real Madrid</h2>
-             <div className="flex items-center gap-2 mb-4 opacity-80">
-                <span className="text-sm">Carlo Ancelotti</span>
-                <span className="w-1 h-1 rounded-full bg-white"></span>
-                <span className="text-sm flex items-center gap-1">
-                   <span className="text-yellow-400">★</span> 92 OVR
-                </span>
-             </div>
-             
-             <div className="flex items-center justify-between">
-               <button className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white px-6 py-3 rounded-full text-sm font-semibold transition-all w-full mr-3">
-                 See details
-               </button>
-               <button className="bg-mint text-obsidian p-3 rounded-full hover:bg-mint-hover transition-colors shadow-lg shadow-mint/20">
-                 <ArrowRightIcon className="w-5 h-5" />
-               </button>
-             </div>
-           </div>
-        </GlassCard>
+        <h3 className="text-lg font-bold mb-3 px-1 flex items-center gap-2 opacity-80">
+          <CurrencyDollarIcon className="w-5 h-5" /> {t.financials}
+        </h3>
+        <div className="grid grid-cols-2 gap-4">
+          <GlassCard className="p-5">
+             <span className="text-xs font-bold opacity-50 uppercase tracking-wider block mb-1">{t.transferBudget}</span>
+             <span className="text-2xl font-black text-green-500">{formatMoney(career.transferBudget)}</span>
+          </GlassCard>
+          <GlassCard className="p-5">
+             <span className="text-xs font-bold opacity-50 uppercase tracking-wider block mb-1">{t.wageBudget}</span>
+             <span className="text-xl font-black text-blue-500">{formatMoney(career.wageBudget)}<span className="text-xs font-normal opacity-60">/wk</span></span>
+          </GlassCard>
+        </div>
       </div>
 
-      {/* Quick Stats Grid Placeholder */}
-      <div className="grid grid-cols-2 gap-4">
-        <GlassCard className="p-4 flex flex-col justify-between h-32">
-           <div className="p-2 bg-blue-500/10 rounded-full w-fit text-blue-500"><UserGroupSolid className="w-5 h-5"/></div>
-           <div>
-             <span className="text-2xl font-bold block">28</span>
-             <span className="text-xs opacity-60">Players</span>
-           </div>
-        </GlassCard>
-        <GlassCard className="p-4 flex flex-col justify-between h-32">
-           <div className="p-2 bg-green-500/10 rounded-full w-fit text-green-500"><CurrencyDollarSolid className="w-5 h-5"/></div>
-           <div>
-             <span className="text-2xl font-bold block">€120M</span>
-             <span className="text-xs opacity-60">Budget</span>
-           </div>
-        </GlassCard>
+      {/* Squad Overview Grid */}
+      <div>
+        <h3 className="text-lg font-bold mb-3 px-1 flex items-center gap-2 opacity-80">
+          <UserGroupIcon className="w-5 h-5" /> {t.statsOverview}
+        </h3>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+           <StatCard icon={UserGroupIcon} value={playerCount} label={t.squadSize} />
+           <StatCard icon={AcademicCapIcon} value={avgAge} label={t.avgAge} />
+           <StatCard icon={UserPlusIcon} value={over22} label={t.over22} />
+           <StatCard icon={HomeIcon} value={homeGrown} label={t.homegrown} colorClass="text-green-500" />
+           <StatCard icon={GlobeEuropeAfricaIcon} value={nonEU} label={t.nonEU} colorClass="text-orange-500" />
+        </div>
       </div>
+
+      {/* Manager Actions */}
+      <div>
+        <h3 className="text-lg font-bold mb-3 px-1 flex items-center gap-2 opacity-80">
+          <AdjustmentsHorizontalIcon className="w-5 h-5" /> {t.managerActions}
+        </h3>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Button variant="secondary" onClick={advanceSeason} className="gap-2">
+            <ForwardIcon className="w-5 h-5" />
+            {t.endSeason}
+          </Button>
+          <Button variant="danger" onClick={() => setShowDeleteConfirm(true)} className="gap-2">
+            <TrashIcon className="w-5 h-5" />
+            {t.deleteCareer}
+          </Button>
+        </div>
+      </div>
+
     </div>
   );
 };
@@ -360,8 +534,6 @@ const ProfileView = ({ user, handleLogout, t, avatar, setAvatar }: any) => {
       try {
         await updateProfile(user, { displayName: newName });
         setIsEditing(false);
-        // We might want to force a refresh or state update here if needed
-        // but often Firebase auth updates propagate. 
       } catch (error) {
         console.error("Error updating profile", error);
       }
@@ -391,7 +563,6 @@ const ProfileView = ({ user, handleLogout, t, avatar, setAvatar }: any) => {
 
         <div className="flex flex-col items-center mb-8">
           <div className="relative group">
-            {/* UPDATED: Clean border, no gradient, neutral background */}
             <div className="w-32 h-32 rounded-full overflow-hidden shadow-2xl bg-black/5 dark:bg-white/5 border-4 border-white/20 dark:border-white/5">
               <img 
                 src={avatar || `https://ui-avatars.com/api/?name=${user.email}&background=0D8ABC&color=fff`} 
@@ -450,7 +621,6 @@ const ProfileView = ({ user, handleLogout, t, avatar, setAvatar }: any) => {
 
   return (
     <div className="animate-fade-in flex flex-col items-center justify-center h-full pt-20">
-      {/* UPDATED: Clean border, no gradient, neutral background */}
       <div className="w-24 h-24 rounded-full bg-obsidian/5 dark:bg-ghost/5 mb-6 flex items-center justify-center text-3xl font-bold shadow-xl overflow-hidden border-4 border-white/20 dark:border-white/5">
         <img 
           src={avatar || `https://ui-avatars.com/api/?name=${user.email}&background=0D8ABC&color=fff`} 
@@ -487,6 +657,9 @@ export default function App() {
 
   // View State
   const [currentView, setCurrentView] = useState<View>(View.HOME);
+
+  // Career State
+  const [career, setCareer] = useState<Career | null>(null);
 
   // Auth Form State
   const [isLogin, setIsLogin] = useState(true);
@@ -558,6 +731,7 @@ export default function App() {
   const handleLogout = async () => { 
     await signOut(auth); 
     setAvatar(null);
+    setCareer(null); // Reset career state on logout
   };
 
   const handleDevLogin = () => {
@@ -612,8 +786,7 @@ export default function App() {
                 <h1 className="text-2xl font-black tracking-tight">{user.displayName || 'Manager'}</h1>
               </div>
               <button onClick={() => setCurrentView(View.PROFILE)} className="relative group">
-                 {/* UPDATED: Clean border, no gradient */}
-                 <div className="w-10 h-10 rounded-full border-2 border-obsidian/10 dark:border-ghost/10 group-hover:border-mint transition-colors duration-300 overflow-hidden">
+                 <div className="w-10 h-10 rounded-full bg-obsidian/5 dark:bg-white/5 border-2 border-transparent group-hover:border-mint transition-all duration-300 overflow-hidden">
                    <img 
                       src={avatar || `https://ui-avatars.com/api/?name=${user.email}&background=0D8ABC&color=fff`} 
                       alt="Profile" 
@@ -626,7 +799,7 @@ export default function App() {
 
         {/* Main Scrollable Content */}
         <main className="pt-24 pb-32 px-6 min-h-screen">
-          {currentView === View.HOME && <HomeView t={t} />}
+          {currentView === View.HOME && <HomeView t={t} career={career} setCareer={setCareer} />}
           {currentView === View.PROFILE && 
             <ProfileView 
               user={user} 
@@ -637,7 +810,6 @@ export default function App() {
             />
           }
           
-          {/* Placeholder for other views */}
           {(currentView !== View.HOME && currentView !== View.PROFILE) && (
             <div className="flex flex-col items-center justify-center h-[60vh] opacity-50">
                <CommandLineIcon className="w-16 h-16 mb-4" />
@@ -680,7 +852,7 @@ export default function App() {
     );
   }
 
-  // --- Login / Register View (Same as before) ---
+  // --- Login / Register View ---
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden font-sans bg-ghost dark:bg-obsidian text-obsidian dark:text-ghost transition-colors duration-300">
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
