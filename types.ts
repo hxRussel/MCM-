@@ -143,6 +143,8 @@ export interface Translation {
 
   // Squad & AI Import
   addPlayer: string;
+  addManual: string;
+  addPlayerTitle: string;
   importPlayers: string;
   aiScan: string;
   aiScanDesc: string;

@@ -141,6 +141,8 @@ export const TRANSLATIONS: Record<Language, Translation> = {
 
     // Squad & AI Import
     addPlayer: "Add Player",
+    addManual: "Add Manually",
+    addPlayerTitle: "Add New Player",
     importPlayers: "AI Import",
     aiScan: "Scan Image",
     aiScanDesc: "Take a photo of your squad screen (FC25/24). The AI will extract player data.",
@@ -256,6 +258,8 @@ export const TRANSLATIONS: Record<Language, Translation> = {
 
     // Squad & AI Import
     addPlayer: "Aggiungi",
+    addManual: "Aggiungi Manualmente",
+    addPlayerTitle: "Aggiungi Giocatore",
     importPlayers: "Importa con AI",
     aiScan: "Scansiona Immagine",
     aiScanDesc: "Fai una foto alla schermata della rosa (FC25/24). L'AI estrarrà i dati.",

@@ -12,7 +12,8 @@ import {
   CheckCircleIcon,
   XMarkIcon,
   HomeIcon,
-  GlobeEuropeAfricaIcon
+  GlobeEuropeAfricaIcon,
+  PlusIcon
 } from '@heroicons/react/24/outline';
 import { GoogleGenAI } from "@google/genai";
 import { Career, Player } from '../types';
@@ -428,8 +429,16 @@ const ImportSquadModal = ({ isOpen, onClose, onImport, t }: any) => {
 
 export const SquadView = ({ t, career, onUpdateCareer }: { t: any, career: Career, onUpdateCareer: (c: Career) => void }) => {
   const [importModalOpen, setImportModalOpen] = useState(false);
+  const [addModalOpen, setAddModalOpen] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [deletingPlayerId, setDeletingPlayerId] = useState<string | null>(null);
+
+  // Manual Add States
+  const [newName, setNewName] = useState('');
+  const [newAge, setNewAge] = useState(25);
+  const [newOvr, setNewOvr] = useState(75);
+  const [newPos, setNewPos] = useState('MID');
+  const [activePicker, setActivePicker] = useState<'age' | 'overall' | null>(null);
   
   const handleImport = (newPlayers: Player[]) => {
     const updatedPlayers = [...career.players, ...newPlayers];
@@ -451,6 +460,32 @@ export const SquadView = ({ t, career, onUpdateCareer }: { t: any, career: Caree
       onUpdateCareer({ ...career, players: updatedPlayers });
       setDeletingPlayerId(null);
     }
+  };
+
+  const handleAddManualPlayer = () => {
+    if (!newName.trim()) return;
+
+    const newPlayer: Player = {
+      id: 'manual-' + Date.now(),
+      name: newName,
+      age: newAge,
+      overall: newOvr,
+      position: newPos,
+      nationality: 'Unknown',
+      value: 0,
+      wage: 0,
+      isHomegrown: false,
+      isNonEU: false
+    };
+
+    onUpdateCareer({ ...career, players: [...career.players, newPlayer] });
+    setAddModalOpen(false);
+    
+    // Reset form
+    setNewName('');
+    setNewAge(25);
+    setNewOvr(75);
+    setNewPos('MID');
   };
 
   // Improved Player Categorization Logic
@@ -496,6 +531,44 @@ export const SquadView = ({ t, career, onUpdateCareer }: { t: any, career: Caree
         onCancel={() => setDeletingPlayerId(null)}
         t={t}
       />
+
+      {/* Manual Add Modal */}
+      {addModalOpen && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+           <NumberSelectionModal isOpen={activePicker === 'age'} onClose={() => setActivePicker(null)} title="Select Age" min={14} max={45} selectedValue={newAge} onSelect={setNewAge} />
+           <NumberSelectionModal isOpen={activePicker === 'overall'} onClose={() => setActivePicker(null)} title="Select Overall" min={50} max={99} selectedValue={newOvr} onSelect={setNewOvr} />
+
+           <GlassCard className="w-full max-w-md p-6 space-y-6">
+              <div className="flex justify-between items-center border-b border-obsidian/5 dark:border-ghost/5 pb-4">
+                 <h3 className="text-xl font-bold">{t.addPlayerTitle}</h3>
+                 <button onClick={() => setAddModalOpen(false)}><XMarkIcon className="w-6 h-6" /></button>
+              </div>
+
+              <div className="space-y-1">
+                 <label className="text-xs font-bold opacity-50 uppercase tracking-wider">{t.playerName}</label>
+                 <InputField label="" type="text" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g. Lionel Messi" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold opacity-50 uppercase tracking-wider">Age</label>
+                  <button onClick={() => setActivePicker('age')} className="w-full py-3 rounded-xl bg-black/5 dark:bg-white/5 font-black text-xl text-center hover:bg-black/10 transition-colors">{newAge}</button>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold opacity-50 uppercase tracking-wider">Overall</label>
+                  <button onClick={() => setActivePicker('overall')} className="w-full py-3 rounded-xl bg-black/5 dark:bg-white/5 font-black text-xl text-center hover:bg-black/10 transition-colors">{newOvr}</button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                 <label className="block text-xs font-bold opacity-50 uppercase tracking-wider">Ruolo / Position</label>
+                 <RoleSelector value={newPos} onChange={setNewPos} />
+              </div>
+
+              <Button onClick={handleAddManualPlayer}>{t.confirm}</Button>
+           </GlassCard>
+        </div>
+      )}
       
       {/* Header Action */}
       <div className="flex justify-between items-end">
@@ -503,13 +576,23 @@ export const SquadView = ({ t, career, onUpdateCareer }: { t: any, career: Caree
            <h2 className="text-3xl font-black">{t.navSquad}</h2>
            <p className="opacity-60">{career.players.length} Players</p>
         </div>
-        <button 
-          onClick={() => setImportModalOpen(true)}
-          className="bg-mint text-obsidian px-4 py-2 rounded-xl font-bold shadow-lg shadow-mint/20 hover:scale-105 transition-transform flex items-center gap-2"
-        >
-          <SparklesIcon className="w-5 h-5" />
-          {t.importPlayers}
-        </button>
+        <div className="flex gap-2">
+          <button 
+            onClick={() => setAddModalOpen(true)}
+            className="bg-white/10 dark:bg-white/5 text-obsidian dark:text-ghost border border-white/20 px-3 py-2 rounded-xl font-bold hover:bg-white/20 transition-all flex items-center gap-2"
+          >
+            <PlusIcon className="w-5 h-5" />
+            <span className="hidden sm:inline">{t.addManual}</span>
+          </button>
+          <button 
+            onClick={() => setImportModalOpen(true)}
+            className="bg-mint text-obsidian px-4 py-2 rounded-xl font-bold shadow-lg shadow-mint/20 hover:scale-105 transition-transform flex items-center gap-2"
+          >
+            <SparklesIcon className="w-5 h-5" />
+            <span className="hidden sm:inline">{t.importPlayers}</span>
+            <span className="sm:hidden">AI</span>
+          </button>
+        </div>
       </div>
 
       {/* Render Groups */}
