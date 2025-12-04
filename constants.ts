@@ -120,6 +120,7 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     uploadLogoDesc: "Upload a transparent PNG (max 1MB).",
     deleteLogoConfirm: "Remove Crest?",
     deleteLogoMessage: "Are you sure you want to remove the team crest?",
+    replaceLogo: "Replace",
 
     // Career Creation & Stats
     startCareer: "Start New Career",
@@ -153,6 +154,7 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     transferTrend: "Transfer Budget Trend",
     wageTrend: "Wage Budget Trend",
     clickToView: "Click to view detailed charts",
+    trendsResetMessage: "Trends are reset at the end of each season.",
 
     // Season & Actions
     currentSeason: "Current Season",
@@ -196,6 +198,12 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     releasePlayer: "Release Player",
     releaseConfirmTitle: "Release Player?",
     releaseConfirmMessage: "Are you sure? This will remove the player from your squad.",
+    labelName: "Name",
+    labelAge: "Age",
+    labelOverall: "Overall",
+    labelRole: "Role / Position",
+    playersCount: "Players",
+    loanedCount: "Loaned",
 
     // Market
     buyPlayer: "Buy Player",
@@ -292,6 +300,7 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     uploadLogoDesc: "Carica un PNG trasparente (max 1MB).",
     deleteLogoConfirm: "Rimuovere Stemma?",
     deleteLogoMessage: "Sei sicuro di voler rimuovere lo stemma della squadra?",
+    replaceLogo: "Sostituisci",
 
     // Career Creation & Stats
     startCareer: "Inizia Nuova Carriera",
@@ -325,6 +334,7 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     transferTrend: "Andamento Budget Trasferimenti",
     wageTrend: "Andamento Budget Stipendi",
     clickToView: "Clicca per i grafici dettagliati",
+    trendsResetMessage: "I grafici vengono resettati alla fine di ogni stagione.",
 
     // Season & Actions
     currentSeason: "Stagione Corrente",
@@ -368,6 +378,12 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     releasePlayer: "Svincola",
     releaseConfirmTitle: "Svincolare Giocatore?",
     releaseConfirmMessage: "Sei sicuro? Il giocatore verrà rimosso dalla rosa.",
+    labelName: "Nome",
+    labelAge: "Età",
+    labelOverall: "Overall",
+    labelRole: "Ruolo / Posizione",
+    playersCount: "Giocatori",
+    loanedCount: "In Prestito",
     
     // Market
     buyPlayer: "Acquista",

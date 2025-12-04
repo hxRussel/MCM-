@@ -534,7 +534,7 @@ export const HomeView = ({ t, career, onSaveCareer, currency }: { t: any, career
               </div>
 
               <div className="text-center text-xs opacity-40 pt-2">
-                 Trends are reset at the end of each season.
+                 {t.trendsResetMessage}
               </div>
            </GlassCard>
         </div>

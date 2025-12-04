@@ -1,4 +1,5 @@
 
+
 import React, { useRef, useState } from 'react';
 import { 
   GlobeAltIcon, 
@@ -177,7 +178,7 @@ export const SettingsView = ({
                  <div className="flex gap-2">
                     <Button onClick={() => logoInputRef.current?.click()} className="text-sm py-2">
                        <PhotoIcon className="w-4 h-4 mr-2" />
-                       {career.teamLogo ? "Replace" : t.uploadLogo}
+                       {career.teamLogo ? t.replaceLogo : t.uploadLogo}
                     </Button>
                     {career.teamLogo && (
                        <Button variant="danger" onClick={() => setShowDeleteLogoConfirm(true)} className="text-sm py-2 w-auto px-4">

@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { 
   CurrencyDollarIcon, 
@@ -331,17 +332,17 @@ export const MarketView = ({ t, career, onUpdateCareer, currency }: { t: any, ca
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-xs font-bold opacity-50 uppercase tracking-wider">Age</label>
+                  <label className="text-xs font-bold opacity-50 uppercase tracking-wider">{t.labelAge}</label>
                   <button onClick={() => setActivePicker('age')} className="w-full py-3 rounded-xl bg-black/5 dark:bg-white/5 font-black text-xl text-center hover:bg-black/10 transition-colors">{newPlayerAge}</button>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-bold opacity-50 uppercase tracking-wider">Overall</label>
+                  <label className="text-xs font-bold opacity-50 uppercase tracking-wider">{t.labelOverall}</label>
                   <button onClick={() => setActivePicker('overall')} className="w-full py-3 rounded-xl bg-black/5 dark:bg-white/5 font-black text-xl text-center hover:bg-black/10 transition-colors">{newPlayerOvr}</button>
                 </div>
               </div>
 
               <div className="space-y-2">
-                 <label className="block text-xs font-bold opacity-50 uppercase tracking-wider">Ruolo / Position</label>
+                 <label className="block text-xs font-bold opacity-50 uppercase tracking-wider">{t.labelRole}</label>
                  <RoleSelector value={newPlayerPos} onChange={setNewPlayerPos} />
               </div>
 

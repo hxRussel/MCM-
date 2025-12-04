@@ -149,6 +149,7 @@ export interface Translation {
   uploadLogoDesc: string;
   deleteLogoConfirm: string;
   deleteLogoMessage: string;
+  replaceLogo: string; // NEW
 
   // Career Creation & Stats
   startCareer: string;
@@ -182,6 +183,7 @@ export interface Translation {
   transferTrend: string;
   wageTrend: string;
   clickToView: string;
+  trendsResetMessage: string; // NEW
 
   // Season & Actions
   currentSeason: string;
@@ -225,6 +227,12 @@ export interface Translation {
   releasePlayer: string;
   releaseConfirmTitle: string;
   releaseConfirmMessage: string;
+  labelName: string; // NEW
+  labelAge: string; // NEW
+  labelOverall: string; // NEW
+  labelRole: string; // NEW
+  playersCount: string; // NEW
+  loanedCount: string; // NEW
 
   // Market
   buyPlayer: string;

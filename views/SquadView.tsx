@@ -1,4 +1,5 @@
 
+
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   SparklesIcon, 
@@ -157,7 +158,7 @@ const EditPlayerModal = ({ isOpen, onClose, player, onSave, t }: any) => {
         </h3>
         
         <div className="space-y-1">
-          <label className="text-xs font-bold opacity-50 uppercase tracking-wider">Name</label>
+          <label className="text-xs font-bold opacity-50 uppercase tracking-wider">{t.labelName}</label>
           <InputField 
              label="" 
              type="text" 
@@ -169,7 +170,7 @@ const EditPlayerModal = ({ isOpen, onClose, player, onSave, t }: any) => {
         {/* Clickable Inputs for Age/OVR */}
         <div className="grid grid-cols-2 gap-4">
            <div className="space-y-1">
-             <label className="text-xs font-bold opacity-50 uppercase tracking-wider">Age</label>
+             <label className="text-xs font-bold opacity-50 uppercase tracking-wider">{t.labelAge}</label>
              <button 
                onClick={() => setActivePicker('age')}
                className="w-full py-4 rounded-xl bg-black/5 dark:bg-white/5 border border-transparent hover:border-mint transition-all font-black text-2xl text-center"
@@ -179,7 +180,7 @@ const EditPlayerModal = ({ isOpen, onClose, player, onSave, t }: any) => {
            </div>
            
            <div className="space-y-1">
-             <label className="text-xs font-bold opacity-50 uppercase tracking-wider">Overall</label>
+             <label className="text-xs font-bold opacity-50 uppercase tracking-wider">{t.labelOverall}</label>
              <button 
                onClick={() => setActivePicker('overall')}
                className="w-full py-4 rounded-xl bg-black/5 dark:bg-white/5 border border-transparent hover:border-mint transition-all font-black text-2xl text-center"
@@ -232,7 +233,7 @@ const EditPlayerModal = ({ isOpen, onClose, player, onSave, t }: any) => {
         </div>
 
         <div className="space-y-2">
-           <label className="block text-xs font-bold opacity-50 uppercase tracking-wider">Ruolo / Position</label>
+           <label className="block text-xs font-bold opacity-50 uppercase tracking-wider">{t.labelRole}</label>
            <RoleSelector 
              value={formData.position}
              onChange={(val) => handleChange('position', val)}
@@ -610,23 +611,23 @@ export const SquadView = ({ t, career, onUpdateCareer }: { t: any, career: Caree
               </div>
 
               <div className="space-y-1">
-                 <label className="text-xs font-bold opacity-50 uppercase tracking-wider">{t.playerName}</label>
+                 <label className="text-xs font-bold opacity-50 uppercase tracking-wider">{t.labelName}</label>
                  <InputField label="" type="text" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g. Lionel Messi" />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-xs font-bold opacity-50 uppercase tracking-wider">Age</label>
+                  <label className="text-xs font-bold opacity-50 uppercase tracking-wider">{t.labelAge}</label>
                   <button onClick={() => setActivePicker('age')} className="w-full py-3 rounded-xl bg-black/5 dark:bg-white/5 font-black text-xl text-center hover:bg-black/10 transition-colors">{newAge}</button>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-bold opacity-50 uppercase tracking-wider">Overall</label>
+                  <label className="text-xs font-bold opacity-50 uppercase tracking-wider">{t.labelOverall}</label>
                   <button onClick={() => setActivePicker('overall')} className="w-full py-3 rounded-xl bg-black/5 dark:bg-white/5 font-black text-xl text-center hover:bg-black/10 transition-colors">{newOvr}</button>
                 </div>
               </div>
 
               <div className="space-y-2">
-                 <label className="block text-xs font-bold opacity-50 uppercase tracking-wider">Ruolo / Position</label>
+                 <label className="block text-xs font-bold opacity-50 uppercase tracking-wider">{t.labelRole}</label>
                  <RoleSelector value={newPos} onChange={setNewPos} />
               </div>
 
@@ -639,7 +640,7 @@ export const SquadView = ({ t, career, onUpdateCareer }: { t: any, career: Caree
       <div className="flex justify-between items-end">
         <div>
            <h2 className="text-3xl font-black">{t.navSquad}</h2>
-           <p className="opacity-60">{career.players.length} Players ({loanedPlayers.length} Loaned)</p>
+           <p className="opacity-60">{career.players.length} {t.playersCount} ({loanedPlayers.length} {t.loanedCount})</p>
         </div>
         <div className="flex gap-2">
           <button 
