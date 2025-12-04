@@ -67,6 +67,10 @@ export const ClubView = ({ t, career, onUpdateCareer, language, currency }: { t:
          const over22 = career.players.filter(p => p.age > 22).length;
          const under22 = playerCount - over22;
 
+         // Get Key Players for Contract Context (Top 8 by Overall)
+         const sortedPlayers = [...career.players].sort((a, b) => b.overall - a.overall);
+         const keyPlayers = sortedPlayers.slice(0, 8).map(p => p.name).join(", ");
+
          systemPrompt = `
            ROLE: You are the Club Board of Directors / Football Director.
            TASK: Generate ONE realistic seasonal objective or obstacle for the manager of "${career.teamName}".
@@ -78,6 +82,7 @@ export const ClubView = ({ t, career, onUpdateCareer, language, currency }: { t:
            - Average Age: ${avgAge} years
            - Experienced Players (>22): ${over22}
            - Young Players (<=22): ${under22}
+           - Key Players: ${keyPlayers}
            
            LOGIC FOR GENERATION (Analyze the context):
            1. **SQUAD SIZE**: 
@@ -90,13 +95,17 @@ export const ClubView = ({ t, career, onUpdateCareer, language, currency }: { t:
               - If Budget is High (>100M): Demand a "Marquee Signing" (Star player).
               - If Budget is Low (<5M): Demand strict austerity or selling a key player to raise funds.
               - If Wage Bill is high: Demand to reduce total wage bill by 10%.
-           4. **IDENTITY**:
+           4. **CONTRACTS & MAN MANAGEMENT** (PRIORITY):
+              - Choose a specific player from "Key Players" who demands a wage increase or he will leave.
+              - Choose a player who refuses to renew their contract (risk of leaving on free transfer).
+              - A key player is unhappy and demands to be sold to a bigger club.
+           5. **IDENTITY**:
               - Demand to sign players from a specific nation (e.g., local talent).
               - Demand to play/promote academy graduates.
            
            OUTPUT RULES:
            - Pick ONE scenario based on the logic above.
-           - Be creative and realistic for a football simulation.
+           - Be creative, realistic, and specific (use player names if applicable).
            - Max 2 sentences.
            - Language: ${langName}.
          `;
