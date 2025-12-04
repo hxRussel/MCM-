@@ -47,6 +47,21 @@ export interface Team {
   players: Player[]; // Default roster
 }
 
+export interface Transaction {
+  id: string;
+  type: 'buy' | 'sell';
+  playerName: string;
+  amount: number; // Transfer fee
+  wage: number;   // Wage impact
+  date: string;
+}
+
+export interface BudgetHistory {
+  date: string;
+  transferBudget: number;
+  wageBudget: number;
+}
+
 export interface Career {
   managerName: string;
   teamName: string;
@@ -56,6 +71,8 @@ export interface Career {
   startDate: string;
   season: string; // e.g., "2025/2026"
   wageDisplayMode?: 'weekly' | 'yearly';
+  transactions: Transaction[];
+  budgetHistory: BudgetHistory[];
 }
 
 export interface Translation {
@@ -123,11 +140,21 @@ export interface Translation {
   yearlySuffix: string;
   squadSize: string;
   avgAge: string;
+  avgOvr: string;
   over22: string;
   homegrown: string;
   nonEU: string;
   statsOverview: string;
   financials: string;
+  financialActivity: string;
+  history: string;
+  trends: string;
+  noActivity: string;
+  latestTransaction: string;
+  viewFullHistory: string;
+  transferTrend: string;
+  wageTrend: string;
+  clickToView: string;
 
   // Season & Actions
   currentSeason: string;
@@ -180,4 +207,6 @@ export interface Translation {
   confirmSigning: string;
   confirmSale: string;
   fundsError: string;
+  bought: string;
+  sold: string;
 }

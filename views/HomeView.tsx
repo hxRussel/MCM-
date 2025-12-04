@@ -12,9 +12,15 @@ import {
   AdjustmentsHorizontalIcon, 
   ForwardIcon, 
   TrashIcon,
-  XMarkIcon
+  XMarkIcon,
+  ChartBarIcon,
+  ArrowDownRightIcon,
+  ArrowUpRightIcon,
+  TrophyIcon,
+  ClockIcon,
+  PresentationChartLineIcon
 } from '@heroicons/react/24/outline';
-import { Career, Team } from '../types';
+import { Career, Team, Transaction } from '../types';
 import { MOCK_TEAMS, STARTING_SEASONS } from '../constants';
 import { formatMoney, formatNumberInput, cleanNumberInput } from '../utils/helpers';
 import { GlassCard, Button, InputField, SelectField, ConfirmationModal, StatCard } from '../components/SharedUI';
@@ -26,6 +32,10 @@ export const HomeView = ({ t, career, onSaveCareer }: { t: any, career: Career |
   const [startingSeason, setStartingSeason] = useState(STARTING_SEASONS[1]); // Default 2025/2026
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showEndSeasonConfirm, setShowEndSeasonConfirm] = useState(false);
+  
+  // New Modal States
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [showTrendsModal, setShowTrendsModal] = useState(false);
 
   // Budget Editing States
   const [editTransferOpen, setEditTransferOpen] = useState(false);
@@ -61,7 +71,9 @@ export const HomeView = ({ t, career, onSaveCareer }: { t: any, career: Career |
       players: teamData.players,
       startDate: new Date().toISOString(),
       season: startingSeason,
-      wageDisplayMode: 'weekly' // Default to weekly
+      wageDisplayMode: 'weekly',
+      transactions: [],
+      budgetHistory: [{ date: new Date().toISOString(), transferBudget: teamData.transferBudget, wageBudget: teamData.wageBudget }]
     };
     
     onSaveCareer(newCareer);
@@ -85,11 +97,13 @@ export const HomeView = ({ t, career, onSaveCareer }: { t: any, career: Career |
       age: player.age + 1
     }));
 
-    // Update career state
+    // Update career state: Reset transactions and budget history for new season
     onSaveCareer({
       ...career,
       season: nextSeason,
-      players: updatedPlayers
+      players: updatedPlayers,
+      transactions: [], // Reset history
+      budgetHistory: [{ date: new Date().toISOString(), transferBudget: career.transferBudget, wageBudget: career.wageBudget }] // Start new history point
     });
 
     setShowEndSeasonConfirm(false);
@@ -235,11 +249,37 @@ export const HomeView = ({ t, career, onSaveCareer }: { t: any, career: Career |
   const avgAge = playerCount > 0 
     ? (career.players.reduce((sum, p) => sum + p.age, 0) / playerCount).toFixed(1) 
     : "0";
+  const avgOvr = playerCount > 0
+    ? (career.players.reduce((sum, p) => sum + p.overall, 0) / playerCount).toFixed(0)
+    : "0";
   const over22 = career.players.filter(p => p.age > 22).length;
   const homeGrown = career.players.filter(p => p.isHomegrown).length;
   const nonEU = career.players.filter(p => p.isNonEU).length;
 
   const displayWageData = getDisplayWage();
+  const sortedTransactions = [...(career.transactions || [])].reverse();
+  const lastTransaction = sortedTransactions.length > 0 ? sortedTransactions[0] : null;
+
+  // Simple SVG Line Chart Logic
+  const getBudgetPoints = (type: 'transfer' | 'wage') => {
+    const history = career.budgetHistory || [];
+    if (history.length < 2) return null;
+    
+    // Select data set
+    const values = history.map(h => type === 'transfer' ? h.transferBudget : h.wageBudget);
+    
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const range = max - min || 1; 
+
+    const points = values.map((val, i) => {
+      const x = (i / (values.length - 1)) * 100;
+      const y = 100 - ((val - min) / range) * 100; // Invert Y because SVG 0 is top
+      return `${x},${y}`;
+    }).join(' ');
+
+    return points;
+  };
 
   // Active Career Dashboard
   return (
@@ -262,7 +302,106 @@ export const HomeView = ({ t, career, onSaveCareer }: { t: any, career: Career |
         t={t}
       />
 
-      {/* Transfer Budget Modal */}
+      {/* History Modal */}
+      {showHistoryModal && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+           <GlassCard className="w-full max-w-md p-6 h-[70vh] flex flex-col">
+              <div className="flex justify-between items-center border-b border-obsidian/5 dark:border-ghost/5 pb-4 mb-4">
+                 <h3 className="text-xl font-bold flex items-center gap-2">
+                   <ClockIcon className="w-6 h-6 text-mint" />
+                   {t.history}
+                 </h3>
+                 <button onClick={() => setShowHistoryModal(false)}><XMarkIcon className="w-6 h-6" /></button>
+              </div>
+              <div className="flex-1 overflow-y-auto space-y-2">
+                 {sortedTransactions.length > 0 ? sortedTransactions.map(tx => (
+                    <div key={tx.id} className="flex items-center justify-between p-3 rounded-xl bg-black/5 dark:bg-white/5">
+                       <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-full ${tx.type === 'sell' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
+                             {tx.type === 'sell' ? <ArrowUpRightIcon className="w-4 h-4" /> : <ArrowDownRightIcon className="w-4 h-4" />}
+                          </div>
+                          <div>
+                             <div className="font-bold text-sm">{tx.playerName}</div>
+                             <div className="text-xs opacity-50 uppercase">{tx.type === 'sell' ? t.sold : t.bought}</div>
+                          </div>
+                       </div>
+                       <div className="text-right">
+                          <div className={`font-bold text-sm ${tx.type === 'sell' ? 'text-green-500' : 'text-red-500'}`}>
+                             {tx.type === 'sell' ? '+' : '-'}{formatMoney(tx.amount)}
+                          </div>
+                          <div className="text-xs opacity-50">
+                             {formatMoney(tx.wage)}/wk
+                          </div>
+                       </div>
+                    </div>
+                 )) : (
+                   <div className="text-center py-10 opacity-40 text-sm">{t.noActivity}</div>
+                 )}
+              </div>
+           </GlassCard>
+        </div>
+      )}
+
+      {/* Trends Modal */}
+      {showTrendsModal && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+           <GlassCard className="w-full max-w-lg p-6 space-y-6">
+              <div className="flex justify-between items-center border-b border-obsidian/5 dark:border-ghost/5 pb-4">
+                 <h3 className="text-xl font-bold flex items-center gap-2">
+                   <PresentationChartLineIcon className="w-6 h-6 text-mint" />
+                   {t.trends}
+                 </h3>
+                 <button onClick={() => setShowTrendsModal(false)}><XMarkIcon className="w-6 h-6" /></button>
+              </div>
+
+              {/* Transfer Chart */}
+              <div className="space-y-2">
+                 <h4 className="text-xs font-bold uppercase tracking-wider opacity-60 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-green-500"></span> {t.transferTrend}
+                 </h4>
+                 <div className="h-32 w-full bg-black/5 dark:bg-white/5 rounded-xl p-2 relative">
+                    {getBudgetPoints('transfer') ? (
+                       <svg viewBox="0 0 100 100" className="w-full h-full overflow-visible" preserveAspectRatio="none">
+                         <polyline 
+                           fill="none" 
+                           stroke="#22c55e" 
+                           strokeWidth="2" 
+                           points={getBudgetPoints('transfer') || ""} 
+                           vectorEffect="non-scaling-stroke"
+                         />
+                       </svg>
+                    ) : ( <div className="absolute inset-0 flex items-center justify-center text-xs opacity-30">Not enough data</div> )}
+                 </div>
+              </div>
+
+              {/* Wage Chart */}
+              <div className="space-y-2">
+                 <h4 className="text-xs font-bold uppercase tracking-wider opacity-60 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-blue-500"></span> {t.wageTrend}
+                 </h4>
+                 <div className="h-32 w-full bg-black/5 dark:bg-white/5 rounded-xl p-2 relative">
+                    {getBudgetPoints('wage') ? (
+                       <svg viewBox="0 0 100 100" className="w-full h-full overflow-visible" preserveAspectRatio="none">
+                         <polyline 
+                           fill="none" 
+                           stroke="#3b82f6" 
+                           strokeWidth="2" 
+                           points={getBudgetPoints('wage') || ""} 
+                           vectorEffect="non-scaling-stroke"
+                         />
+                       </svg>
+                    ) : ( <div className="absolute inset-0 flex items-center justify-center text-xs opacity-30">Not enough data</div> )}
+                 </div>
+              </div>
+
+              <div className="text-center text-xs opacity-40 pt-2">
+                 Trends are reset at the end of each season.
+              </div>
+           </GlassCard>
+        </div>
+      )}
+
+      {/* Transfer Budget Modal (Existing) */}
       {editTransferOpen && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
            <GlassCard className="w-full max-w-sm p-8 space-y-6">
@@ -270,7 +409,6 @@ export const HomeView = ({ t, career, onSaveCareer }: { t: any, career: Career |
                  <h3 className="text-xl font-bold">{t.editTransferBudget}</h3>
                  <button onClick={() => setEditTransferOpen(false)}><XMarkIcon className="w-6 h-6" /></button>
               </div>
-              
               <div className="flex flex-col items-center justify-center py-6">
                  <div className="relative w-full">
                     <span className="absolute left-0 top-1/2 -translate-y-1/2 text-2xl font-bold text-green-500 opacity-50">€</span>
@@ -285,13 +423,12 @@ export const HomeView = ({ t, career, onSaveCareer }: { t: any, career: Career |
                     />
                  </div>
               </div>
-
               <Button onClick={saveTransferBudget}>{t.saveChanges}</Button>
            </GlassCard>
         </div>
       )}
 
-      {/* Wage Budget Modal */}
+      {/* Wage Budget Modal (Existing) */}
       {editWageOpen && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
            <GlassCard className="w-full max-w-sm p-8 space-y-6">
@@ -299,24 +436,12 @@ export const HomeView = ({ t, career, onSaveCareer }: { t: any, career: Career |
                  <h3 className="text-xl font-bold">{t.editWageBudget}</h3>
                  <button onClick={() => setEditWageOpen(false)}><XMarkIcon className="w-6 h-6" /></button>
               </div>
-              
               <div className="flex justify-center">
                 <div className="bg-black/5 dark:bg-white/5 p-1 rounded-xl flex gap-1">
-                   <button 
-                     onClick={() => isYearlyWage && toggleWageView()}
-                     className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${!isYearlyWage ? 'bg-mint text-obsidian shadow-sm' : 'opacity-50'}`}
-                   >
-                     {t.weekly}
-                   </button>
-                   <button 
-                     onClick={() => !isYearlyWage && toggleWageView()}
-                     className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${isYearlyWage ? 'bg-mint text-obsidian shadow-sm' : 'opacity-50'}`}
-                   >
-                     {t.yearly}
-                   </button>
+                   <button onClick={() => isYearlyWage && toggleWageView()} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${!isYearlyWage ? 'bg-mint text-obsidian shadow-sm' : 'opacity-50'}`}>{t.weekly}</button>
+                   <button onClick={() => !isYearlyWage && toggleWageView()} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${isYearlyWage ? 'bg-mint text-obsidian shadow-sm' : 'opacity-50'}`}>{t.yearly}</button>
                 </div>
               </div>
-
               <div className="flex flex-col items-center justify-center py-6">
                  <div className="relative w-full">
                     <span className="absolute left-0 top-1/2 -translate-y-1/2 text-2xl font-bold text-blue-500 opacity-50">€</span>
@@ -330,11 +455,8 @@ export const HomeView = ({ t, career, onSaveCareer }: { t: any, career: Career |
                       autoFocus
                     />
                  </div>
-                 <span className="text-xs font-bold opacity-50 uppercase tracking-widest mt-2">
-                    {isYearlyWage ? t.yearly : t.weekly}
-                 </span>
+                 <span className="text-xs font-bold opacity-50 uppercase tracking-widest mt-2">{isYearlyWage ? t.yearly : t.weekly}</span>
               </div>
-
               <Button onClick={saveWageBudget}>{t.saveChanges}</Button>
            </GlassCard>
         </div>
@@ -357,12 +479,14 @@ export const HomeView = ({ t, career, onSaveCareer }: { t: any, career: Career |
         </div>
       </GlassCard>
 
-      {/* Financials */}
+      {/* Financials & History */}
       <div>
         <h3 className="text-lg font-bold mb-3 px-1 flex items-center gap-2 opacity-80">
           <CurrencyDollarIcon className="w-5 h-5" /> {t.financials}
         </h3>
-        <div className="grid grid-cols-2 gap-4">
+        
+        {/* Budget Cards */}
+        <div className="grid grid-cols-2 gap-4 mb-4">
           <GlassCard onClick={openTransferModal} className="p-5 cursor-pointer hover:scale-[1.02] transition-transform">
              <span className="text-xs font-bold opacity-50 uppercase tracking-wider block mb-1">{t.transferBudget}</span>
              <span className="text-2xl font-black text-green-500">{formatMoney(career.transferBudget)}</span>
@@ -375,6 +499,56 @@ export const HomeView = ({ t, career, onSaveCareer }: { t: any, career: Career |
              </span>
           </GlassCard>
         </div>
+
+        {/* Financial Activity Separate Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+          
+          {/* History Card (Last Transaction) */}
+          <GlassCard onClick={() => setShowHistoryModal(true)} className="p-4 cursor-pointer hover:bg-white/90 dark:hover:bg-black/50 transition-colors">
+            <div className="flex justify-between items-start mb-3">
+               <h4 className="font-bold flex items-center gap-2 text-sm">
+                  <ClockIcon className="w-4 h-4 text-mint" />
+                  {t.latestTransaction}
+               </h4>
+            </div>
+            {lastTransaction ? (
+               <div className="flex items-center justify-between p-2 rounded-lg bg-black/5 dark:bg-white/5 mb-2">
+                   <div className="flex items-center gap-2">
+                       <div className={`p-1.5 rounded-full ${lastTransaction.type === 'sell' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
+                           {lastTransaction.type === 'sell' ? <ArrowUpRightIcon className="w-3 h-3" /> : <ArrowDownRightIcon className="w-3 h-3" />}
+                       </div>
+                       <div className="text-sm font-bold truncate max-w-[100px] sm:max-w-[150px]">{lastTransaction.playerName}</div>
+                   </div>
+                   <div className={`text-xs font-bold ${lastTransaction.type === 'sell' ? 'text-green-500' : 'text-red-500'}`}>
+                      {lastTransaction.type === 'sell' ? '+' : '-'}{formatMoney(lastTransaction.amount)}
+                   </div>
+               </div>
+            ) : (
+               <div className="text-xs opacity-40 italic py-2">{t.noActivity}</div>
+            )}
+            <div className="text-xs text-mint font-bold text-center mt-1">
+               {t.viewFullHistory}
+            </div>
+          </GlassCard>
+
+          {/* Trends Card */}
+          <GlassCard onClick={() => setShowTrendsModal(true)} className="p-4 cursor-pointer hover:bg-white/90 dark:hover:bg-black/50 transition-colors flex flex-col justify-between">
+            <div className="flex justify-between items-start">
+               <h4 className="font-bold flex items-center gap-2 text-sm">
+                  <PresentationChartLineIcon className="w-4 h-4 text-mint" />
+                  {t.trends}
+               </h4>
+            </div>
+            <div className="flex items-center justify-center py-2 opacity-80">
+               {/* Simple illustrative icon */}
+               <ChartBarIcon className="w-12 h-12 text-obsidian/20 dark:text-ghost/20" />
+            </div>
+            <div className="text-xs text-mint font-bold text-center mt-1">
+               {t.clickToView}
+            </div>
+          </GlassCard>
+
+        </div>
       </div>
 
       {/* Squad Overview Grid */}
@@ -385,6 +559,7 @@ export const HomeView = ({ t, career, onSaveCareer }: { t: any, career: Career |
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
            <StatCard icon={UserGroupIcon} value={playerCount} label={t.squadSize} />
            <StatCard icon={AcademicCapIcon} value={avgAge} label={t.avgAge} />
+           <StatCard icon={TrophyIcon} value={avgOvr} label={t.avgOvr} colorClass="text-yellow-500" />
            <StatCard icon={UserPlusIcon} value={over22} label={t.over22} />
            <StatCard icon={HomeIcon} value={homeGrown} label={t.homegrown} colorClass="text-green-500" />
            <StatCard icon={GlobeEuropeAfricaIcon} value={nonEU} label={t.nonEU} colorClass="text-orange-500" />

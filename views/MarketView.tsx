@@ -7,7 +7,7 @@ import {
   ArrowTrendingUpIcon,
   ArrowTrendingDownIcon
 } from '@heroicons/react/24/outline';
-import { Career, Player } from '../types';
+import { Career, Player, Transaction } from '../types';
 import { formatMoney, formatNumberInput, cleanNumberInput } from '../utils/helpers';
 import { GlassCard, Button, InputField, ConfirmationModal, NumberSelectionModal, RoleSelector, PlayerSelectionModal } from '../components/SharedUI';
 
@@ -127,11 +127,29 @@ export const MarketView = ({ t, career, onUpdateCareer }: { t: any, career: Care
       isNonEU: false
     };
 
+    const newTransaction: Transaction = {
+      id: 'tx-' + Date.now(),
+      type: 'buy',
+      playerName: newPlayerName,
+      amount: fee,
+      wage: wage,
+      date: new Date().toISOString()
+    };
+
+    const updatedTransferBudget = career.transferBudget - fee;
+    const updatedWageBudget = career.wageBudget - wage;
+
     const updatedCareer = {
       ...career,
-      transferBudget: career.transferBudget - fee,
-      wageBudget: career.wageBudget - wage,
-      players: [...career.players, newPlayer]
+      transferBudget: updatedTransferBudget,
+      wageBudget: updatedWageBudget,
+      players: [...career.players, newPlayer],
+      transactions: [...(career.transactions || []), newTransaction],
+      budgetHistory: [...(career.budgetHistory || []), { 
+        date: new Date().toISOString(), 
+        transferBudget: updatedTransferBudget, 
+        wageBudget: updatedWageBudget 
+      }]
     };
 
     onUpdateCareer(updatedCareer);
@@ -161,11 +179,29 @@ export const MarketView = ({ t, career, onUpdateCareer }: { t: any, career: Care
     // Logic: Add Fee to Budget, Add Wage back to Budget, Remove Player
     const updatedPlayers = career.players.filter(p => p.id !== selectedSellPlayer.id);
     
+    const updatedTransferBudget = career.transferBudget + fee;
+    const updatedWageBudget = career.wageBudget + wage;
+
+    const newTransaction: Transaction = {
+      id: 'tx-' + Date.now(),
+      type: 'sell',
+      playerName: selectedSellPlayer.name,
+      amount: fee,
+      wage: wage,
+      date: new Date().toISOString()
+    };
+
     const updatedCareer = {
       ...career,
-      transferBudget: career.transferBudget + fee,
-      wageBudget: career.wageBudget + wage,
-      players: updatedPlayers
+      transferBudget: updatedTransferBudget,
+      wageBudget: updatedWageBudget,
+      players: updatedPlayers,
+      transactions: [...(career.transactions || []), newTransaction],
+      budgetHistory: [...(career.budgetHistory || []), { 
+         date: new Date().toISOString(), 
+         transferBudget: updatedTransferBudget, 
+         wageBudget: updatedWageBudget 
+      }]
     };
 
     onUpdateCareer(updatedCareer);

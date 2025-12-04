@@ -121,11 +121,21 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     yearlySuffix: "/yr",
     squadSize: "Squad Size",
     avgAge: "Avg Age",
+    avgOvr: "Avg OVR",
     over22: "Over 22",
     homegrown: "Homegrown",
     nonEU: "Non-EU",
     statsOverview: "Squad Overview",
     financials: "Financials",
+    financialActivity: "Season Financials",
+    history: "Transaction History",
+    trends: "Financial Trends",
+    noActivity: "No transactions yet",
+    latestTransaction: "Latest Activity",
+    viewFullHistory: "View Full History",
+    transferTrend: "Transfer Budget Trend",
+    wageTrend: "Wage Budget Trend",
+    clickToView: "Click to view detailed charts",
 
     // Season & Actions
     currentSeason: "Current Season",
@@ -135,7 +145,7 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     deleteCareerTitle: "Delete Career?",
     deleteCareerMessage: "Are you sure you want to delete this career? All data will be lost permanently.",
     endSeasonConfirmTitle: "End Season?",
-    endSeasonConfirmMessage: "This will advance the season and increase all players' age by 1. Do you want to continue?",
+    endSeasonConfirmMessage: "This will advance the season, increase players' age, and RESET financial history. Do you want to continue?",
     seasonAdvanced: "Season advanced!",
     managerActions: "Manager Actions",
 
@@ -178,6 +188,8 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     confirmSigning: "Confirm Signing",
     confirmSale: "Confirm Sale",
     fundsError: "Insufficient funds!",
+    bought: "Bought",
+    sold: "Sold"
   },
   [Language.IT]: {
     welcome: "Benvenuto su MCM+",
@@ -243,11 +255,21 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     yearlySuffix: "/yr",
     squadSize: "Rosa",
     avgAge: "Età Media",
+    avgOvr: "OVR Medio",
     over22: "Over 22",
     homegrown: "Vivaio",
     nonEU: "Extra-UE",
     statsOverview: "Riepilogo Rosa",
     financials: "Finanze",
+    financialActivity: "Attività Finanziaria",
+    history: "Storico Transazioni",
+    trends: "Andamento Finanziario",
+    noActivity: "Nessuna transazione recente",
+    latestTransaction: "Ultima Operazione",
+    viewFullHistory: "Vedi Storico Completo",
+    transferTrend: "Andamento Budget Trasferimenti",
+    wageTrend: "Andamento Budget Stipendi",
+    clickToView: "Clicca per i grafici dettagliati",
 
     // Season & Actions
     currentSeason: "Stagione Corrente",
@@ -257,7 +279,7 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     deleteCareerTitle: "Eliminare Carriera?",
     deleteCareerMessage: "Sei sicuro di voler eliminare questa carriera? Tutti i dati andranno persi per sempre.",
     endSeasonConfirmTitle: "Terminare Stagione?",
-    endSeasonConfirmMessage: "Passerai alla stagione successiva e l'età di tutti i giocatori aumenterà di 1 anno. Continuare?",
+    endSeasonConfirmMessage: "Passerai alla stagione successiva, l'età dei giocatori aumenterà e lo STORICO FINANZIARIO verrà resettato. Continuare?",
     seasonAdvanced: "Stagione avanzata!",
     managerActions: "Azioni Manager",
 
@@ -300,5 +322,7 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     confirmSigning: "Conferma Acquisto",
     confirmSale: "Conferma Cessione",
     fundsError: "Fondi insufficienti!",
+    bought: "Acquisto",
+    sold: "Cessione"
   }
 };
