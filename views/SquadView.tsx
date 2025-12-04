@@ -134,7 +134,7 @@ const EditPlayerModal = ({ isOpen, onClose, player, onSave, t }: any) => {
       <NumberSelectionModal 
         isOpen={activePicker === 'age'}
         onClose={() => setActivePicker(null)}
-        title="Select Age"
+        title={t.labelAge}
         min={14}
         max={45}
         selectedValue={formData.age}
@@ -144,7 +144,7 @@ const EditPlayerModal = ({ isOpen, onClose, player, onSave, t }: any) => {
       <NumberSelectionModal 
         isOpen={activePicker === 'overall'}
         onClose={() => setActivePicker(null)}
-        title="Select Overall"
+        title={t.labelOverall}
         min={50}
         max={99}
         selectedValue={formData.overall}
@@ -237,6 +237,7 @@ const EditPlayerModal = ({ isOpen, onClose, player, onSave, t }: any) => {
            <RoleSelector 
              value={formData.position}
              onChange={(val) => handleChange('position', val)}
+             t={t}
            />
         </div>
 
@@ -601,8 +602,8 @@ export const SquadView = ({ t, career, onUpdateCareer }: { t: any, career: Caree
       {/* Manual Add Modal */}
       {addModalOpen && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-           <NumberSelectionModal isOpen={activePicker === 'age'} onClose={() => setActivePicker(null)} title="Select Age" min={14} max={45} selectedValue={newAge} onSelect={setNewAge} />
-           <NumberSelectionModal isOpen={activePicker === 'overall'} onClose={() => setActivePicker(null)} title="Select Overall" min={50} max={99} selectedValue={newOvr} onSelect={setNewOvr} />
+           <NumberSelectionModal isOpen={activePicker === 'age'} onClose={() => setActivePicker(null)} title={t.labelAge} min={14} max={45} selectedValue={newAge} onSelect={setNewAge} />
+           <NumberSelectionModal isOpen={activePicker === 'overall'} onClose={() => setActivePicker(null)} title={t.labelOverall} min={50} max={99} selectedValue={newOvr} onSelect={setNewOvr} />
 
            <GlassCard className="w-full max-w-md p-6 space-y-6">
               <div className="flex justify-between items-center border-b border-obsidian/5 dark:border-ghost/5 pb-4">
@@ -628,7 +629,7 @@ export const SquadView = ({ t, career, onUpdateCareer }: { t: any, career: Caree
 
               <div className="space-y-2">
                  <label className="block text-xs font-bold opacity-50 uppercase tracking-wider">{t.labelRole}</label>
-                 <RoleSelector value={newPos} onChange={setNewPos} />
+                 <RoleSelector value={newPos} onChange={setNewPos} t={t} />
               </div>
 
               <Button onClick={handleAddManualPlayer}>{t.confirm}</Button>

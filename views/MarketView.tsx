@@ -279,8 +279,8 @@ export const MarketView = ({ t, career, onUpdateCareer, currency }: { t: any, ca
       {/* --- Signing Modal --- */}
       {signingModalOpen && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-           <NumberSelectionModal isOpen={activePicker === 'age'} onClose={() => setActivePicker(null)} title="Select Age" min={14} max={45} selectedValue={newPlayerAge} onSelect={setNewPlayerAge} />
-           <NumberSelectionModal isOpen={activePicker === 'overall'} onClose={() => setActivePicker(null)} title="Select Overall" min={50} max={99} selectedValue={newPlayerOvr} onSelect={setNewPlayerOvr} />
+           <NumberSelectionModal isOpen={activePicker === 'age'} onClose={() => setActivePicker(null)} title={t.labelAge} min={14} max={45} selectedValue={newPlayerAge} onSelect={setNewPlayerAge} />
+           <NumberSelectionModal isOpen={activePicker === 'overall'} onClose={() => setActivePicker(null)} title={t.labelOverall} min={50} max={99} selectedValue={newPlayerOvr} onSelect={setNewPlayerOvr} />
 
            <GlassCard className="w-full max-w-md p-6 space-y-6">
               <div className="flex justify-between items-center border-b border-obsidian/5 dark:border-ghost/5 pb-4">
@@ -343,7 +343,7 @@ export const MarketView = ({ t, career, onUpdateCareer, currency }: { t: any, ca
 
               <div className="space-y-2">
                  <label className="block text-xs font-bold opacity-50 uppercase tracking-wider">{t.labelRole}</label>
-                 <RoleSelector value={newPlayerPos} onChange={setNewPlayerPos} />
+                 <RoleSelector value={newPlayerPos} onChange={setNewPlayerPos} t={t} />
               </div>
 
               <Button onClick={handleSignPlayer}>{t.confirmSigning}</Button>

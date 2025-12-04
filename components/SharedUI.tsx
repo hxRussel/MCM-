@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { EyeIcon, EyeSlashIcon, XMarkIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { Player } from '../types';
@@ -282,12 +283,12 @@ export const PlayerSelectionModal = ({ isOpen, onClose, title, players, onSelect
   );
 };
 
-export const RoleSelector = ({ value, onChange }: { value: string, onChange: (val: string) => void }) => {
+export const RoleSelector = ({ value, onChange, t }: { value: string, onChange: (val: string) => void, t: any }) => {
   const roleOptions = [
-    { label: 'POR', value: 'GK', class: 'bg-yellow-500 text-obsidian border-yellow-400' },
-    { label: 'DIF', value: 'DEF', class: 'bg-blue-500 text-white border-blue-400' },
-    { label: 'CEN', value: 'MID', class: 'bg-green-500 text-white border-green-400' },
-    { label: 'ATT', value: 'FWD', class: 'bg-red-500 text-white border-red-400' },
+    { label: t?.roleShortGK || 'POR', value: 'GK', class: 'bg-yellow-500 text-obsidian border-yellow-400' },
+    { label: t?.roleShortDEF || 'DIF', value: 'DEF', class: 'bg-blue-500 text-white border-blue-400' },
+    { label: t?.roleShortMID || 'CEN', value: 'MID', class: 'bg-green-500 text-white border-green-400' },
+    { label: t?.roleShortFWD || 'ATT', value: 'FWD', class: 'bg-red-500 text-white border-red-400' },
   ];
 
   return (
@@ -297,7 +298,7 @@ export const RoleSelector = ({ value, onChange }: { value: string, onChange: (va
           const isActive = 
             (role.value === 'GK' && ['GK', 'POR', 'P'].includes(value)) ||
             (role.value === 'DEF' && ['DEF', 'CB', 'LB', 'RB', 'LWB', 'RWB', 'D', 'DC', 'TS', 'TD'].includes(value)) ||
-            (role.value === 'MID' && ['MID', 'CM', 'CDM', 'CAM', 'LM', 'RM', 'C', 'CC', 'MED'].includes(value)) ||
+            (role.value === 'MID' && ['MID', 'CM', 'CDM', 'CAM', 'LM', 'RM', 'CC', 'CDC', 'COC', 'C', 'MID', 'CEN', 'MED'].includes(value)) ||
             (role.value === 'FWD' && ['FWD', 'ST', 'CF', 'LW', 'RW', 'A', 'ATT', 'AS', 'AD'].includes(value)) ||
             (value === role.value);
           

@@ -204,6 +204,12 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     labelRole: "Role / Position",
     playersCount: "Players",
     loanedCount: "Loaned",
+    
+    // Roles Short
+    roleShortGK: "GK",
+    roleShortDEF: "DEF",
+    roleShortMID: "MID",
+    roleShortFWD: "FWD",
 
     // Market
     buyPlayer: "Buy Player",
@@ -385,6 +391,12 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     playersCount: "Giocatori",
     loanedCount: "In Prestito",
     
+    // Roles Short
+    roleShortGK: "POR",
+    roleShortDEF: "DIF",
+    roleShortMID: "CEN",
+    roleShortFWD: "ATT",
+
     // Market
     buyPlayer: "Acquista",
     sellPlayer: "Cessioni",

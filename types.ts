@@ -233,6 +233,12 @@ export interface Translation {
   labelRole: string; // NEW
   playersCount: string; // NEW
   loanedCount: string; // NEW
+  
+  // Roles Short
+  roleShortGK: string;
+  roleShortDEF: string;
+  roleShortMID: string;
+  roleShortFWD: string;
 
   // Market
   buyPlayer: string;
