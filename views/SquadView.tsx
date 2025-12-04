@@ -1,5 +1,3 @@
-
-
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   SparklesIcon, 
@@ -12,7 +10,7 @@ import {
   CameraIcon, 
   CheckCircleIcon,
   XMarkIcon,
-  HomeIcon,
+  HomeIcon, 
   GlobeEuropeAfricaIcon, 
   PlusIcon,
   ChevronDownIcon,
@@ -253,12 +251,29 @@ const EditPlayerModal = ({ isOpen, onClose, player, onSave, t }: any) => {
 const ImportSquadModal = ({ isOpen, onClose, onImport, t }: any) => {
   const [activeTab, setActiveTab] = useState<'image' | 'text'>('image');
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingStep, setLoadingStep] = useState('');
   const [textInput, setTextInput] = useState('');
   const [previewPlayers, setPreviewPlayers] = useState<Player[]>([]);
+  
+  // Image handling
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const resetState = () => {
+    setPreviewPlayers([]);
+    setSelectedFiles([]);
+    setTextInput('');
+    setIsLoading(false);
+  };
+
+  // Close handler to reset state
+  const handleClose = () => {
+    resetState();
+    onClose();
+  };
+
   // Gemini AI Logic
-  const analyzeData = async (content: any, type: 'text' | 'image') => {
+  const analyzeData = async (base64Images: string[] | null, type: 'text' | 'image') => {
     if (!process.env.API_KEY) {
       alert("API Key is missing! You must add 'API_KEY' to your Vercel Environment Variables.");
       return;
@@ -305,66 +320,48 @@ const ImportSquadModal = ({ isOpen, onClose, onImport, t }: any) => {
         [{"name": "Player Name", "position": "FWD", "overall": 82, "age": 29}]
       `;
 
-      let responseText: string | undefined;
-      
+      let allFoundPlayers: any[] = [];
+
       if (type === 'text') {
+        setLoadingStep("Analyzing text...");
         const result = await ai.models.generateContent({
             model: "gemini-2.5-flash",
             contents: `${systemPrompt}\n\nINPUT DATA:\n${textInput}`
         });
-        responseText = result.text;
-      } else {
-         const result = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: {
-                parts: [
-                    { text: systemPrompt },
-                    { 
-                        inlineData: { 
-                            mimeType: "image/jpeg", 
-                            data: content.split(',')[1] 
-                        } 
-                    }
-                ]
-            }
-        });
-        responseText = result.text;
+        const extracted = parseGeminiResponse(result.text);
+        allFoundPlayers = [...extracted];
+      } else if (base64Images) {
+         // Sequential Processing
+         for (let i = 0; i < base64Images.length; i++) {
+            setLoadingStep(`Analyzing image ${i + 1} of ${base64Images.length}...`);
+            
+            const result = await ai.models.generateContent({
+                model: "gemini-2.5-flash",
+                contents: {
+                    parts: [
+                        { text: systemPrompt },
+                        { 
+                            inlineData: { 
+                                mimeType: "image/jpeg", 
+                                data: base64Images[i].split(',')[1] 
+                            } 
+                        }
+                    ]
+                }
+            });
+            const extracted = parseGeminiResponse(result.text);
+            console.log(`Image ${i+1} found:`, extracted.length, "players");
+            allFoundPlayers = [...allFoundPlayers, ...extracted];
+         }
       }
 
-      const rawText = responseText || "";
-      console.log("Gemini Raw Response:", rawText);
+      // Deduplication & ID Generation
+      setLoadingStep("Finalizing list...");
+      const uniquePlayers = processAndDeduplicatePlayers(allFoundPlayers);
 
-      const jsonMatch = rawText.match(/\[.*\]/s);
-      const cleanJson = jsonMatch ? jsonMatch[0] : "[]";
+      setPreviewPlayers(uniquePlayers);
       
-      let players = [];
-      try {
-        players = JSON.parse(cleanJson);
-      } catch (jsonError) {
-        console.error("Failed to parse extracted JSON", cleanJson);
-      }
-
-      if (!Array.isArray(players)) {
-        players = [];
-      }
-
-      const formattedPlayers = players.map((p: any) => ({
-        id: 'imported-' + Date.now() + Math.random(),
-        name: p.name || 'Unknown',
-        age: (typeof p.age === 'number' && p.age > 12) ? p.age : 25,
-        overall: (typeof p.overall === 'number' && p.overall > 45) ? p.overall : 70,
-        position: p.position ? p.position.toUpperCase() : 'MID',
-        nationality: 'Unknown', 
-        value: 1000000,
-        wage: 5000,
-        isHomegrown: false,
-        isNonEU: false,
-        isOnLoan: false
-      }));
-
-      setPreviewPlayers(formattedPlayers);
-      
-      if (formattedPlayers.length === 0) {
+      if (uniquePlayers.length === 0) {
         alert(t.noPlayersFound);
       }
 
@@ -373,14 +370,85 @@ const ImportSquadModal = ({ isOpen, onClose, onImport, t }: any) => {
       alert(t.errorGeneric);
     } finally {
       setIsLoading(false);
+      setLoadingStep('');
     }
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files?.[0]) {
-      // Use 2048px for better OCR text recognition
-      const base64 = await compressImage(e.target.files[0], 2048, 2048);
-      analyzeData(base64, 'image');
+  const parseGeminiResponse = (rawText: string = ""): any[] => {
+      const jsonMatch = rawText.match(/\[.*\]/s);
+      const cleanJson = jsonMatch ? jsonMatch[0] : "[]";
+      try {
+        const parsed = JSON.parse(cleanJson);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (jsonError) {
+        console.error("Failed to parse extracted JSON", cleanJson);
+        return [];
+      }
+  };
+
+  const processAndDeduplicatePlayers = (rawPlayers: any[]): Player[] => {
+      const uniqueMap = new Map<string, Player>();
+
+      rawPlayers.forEach((p, index) => {
+          // Normalization for matching
+          const nameNorm = p.name ? p.name.trim().toLowerCase() : 'unknown';
+          const age = (typeof p.age === 'number' && p.age > 12) ? p.age : 25;
+          const overall = (typeof p.overall === 'number' && p.overall > 45) ? p.overall : 70;
+          
+          // Composite Key for Deduplication: Name + Age + Overall
+          // This prevents adding the same player twice from overlapping screenshots
+          const duplicateKey = `${nameNorm}-${age}-${overall}`;
+
+          if (!uniqueMap.has(duplicateKey)) {
+              // Create secure, unique ID using timestamp + index + random
+              const uniqueId = `imported-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`;
+              
+              const newPlayer: Player = {
+                  id: uniqueId,
+                  name: p.name || 'Unknown',
+                  age: age,
+                  overall: overall,
+                  position: p.position ? p.position.toUpperCase() : 'MID',
+                  nationality: 'Unknown', 
+                  value: 1000000,
+                  wage: 5000,
+                  isHomegrown: false,
+                  isNonEU: false,
+                  isOnLoan: false
+              };
+              uniqueMap.set(duplicateKey, newPlayer);
+          }
+      });
+
+      return Array.from(uniqueMap.values());
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files) {
+          const files = Array.from(e.target.files);
+          if (files.length > 5) {
+              alert("Max 5 images allowed.");
+              return;
+          }
+          setSelectedFiles(files);
+      }
+  };
+
+  const handleProcessImages = async () => {
+    if (selectedFiles.length === 0) return;
+    
+    // Compress all images first
+    setLoadingStep("Preparing images...");
+    setIsLoading(true);
+    
+    try {
+        const base64Promises = selectedFiles.map(file => compressImage(file, 2048, 2048)); // High res for OCR
+        const base64Images = await Promise.all(base64Promises);
+        analyzeData(base64Images, 'image');
+    } catch (err) {
+        console.error("Compression error", err);
+        alert("Error processing images.");
+        setIsLoading(false);
     }
   };
 
@@ -399,7 +467,7 @@ const ImportSquadModal = ({ isOpen, onClose, onImport, t }: any) => {
              </h3>
              <p className="text-xs opacity-50">Powered by Gemini AI</p>
            </div>
-           <button onClick={onClose} className="p-2 hover:bg-black/5 rounded-full">
+           <button onClick={handleClose} className="p-2 hover:bg-black/5 rounded-full">
              <ArrowRightIcon className="w-6 h-6 rotate-45" />
            </button>
         </div>
@@ -425,11 +493,25 @@ const ImportSquadModal = ({ isOpen, onClose, onImport, t }: any) => {
                 </div>
 
                 {activeTab === 'image' ? (
-                  <div className="text-center py-10 border-2 border-dashed border-obsidian/10 dark:border-ghost/10 rounded-2xl hover:bg-black/5 transition-colors cursor-pointer" onClick={() => fileRef.current?.click()}>
-                     <CameraIcon className="w-12 h-12 mx-auto mb-4 opacity-30" />
-                     <p className="font-bold">{t.uploadImage}</p>
-                     <p className="text-sm opacity-50 mt-1 max-w-xs mx-auto">{t.aiScanDesc}</p>
-                     <input type="file" ref={fileRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
+                  <div className="space-y-4">
+                      <div 
+                        className={`text-center py-10 border-2 border-dashed border-obsidian/10 dark:border-ghost/10 rounded-2xl transition-colors cursor-pointer ${selectedFiles.length > 0 ? 'bg-mint/5 border-mint/30' : 'hover:bg-black/5'}`} 
+                        onClick={() => fileRef.current?.click()}
+                      >
+                        <CameraIcon className={`w-12 h-12 mx-auto mb-4 ${selectedFiles.length > 0 ? 'text-mint' : 'opacity-30'}`} />
+                        <p className="font-bold">{selectedFiles.length > 0 ? `${selectedFiles.length} Images Selected` : t.uploadImage}</p>
+                        <p className="text-sm opacity-50 mt-1 max-w-xs mx-auto">
+                            {selectedFiles.length > 0 ? "Click to change selection" : "Select up to 5 screenshots of your squad."}
+                        </p>
+                        {/* INPUT CHANGED TO MULTIPLE */}
+                        <input type="file" ref={fileRef} className="hidden" multiple accept="image/*" onChange={handleFileSelect} />
+                      </div>
+                      
+                      {selectedFiles.length > 0 && !isLoading && (
+                          <Button onClick={handleProcessImages} className="animate-fade-in">
+                             Analyze {selectedFiles.length} Images
+                          </Button>
+                      )}
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -446,16 +528,20 @@ const ImportSquadModal = ({ isOpen, onClose, onImport, t }: any) => {
                 )}
                 
                 {isLoading && (
-                   <div className="text-center py-4 text-mint animate-pulse font-bold">
-                     {t.analyzing}
+                   <div className="text-center py-6 space-y-2 animate-pulse">
+                     <div className="text-mint font-black text-lg">{loadingStep}</div>
+                     <p className="text-xs opacity-50">This might take a moment...</p>
                    </div>
                 )}
              </div>
            ) : (
              <div className="space-y-4">
                 <div className="flex items-center justify-between mb-4">
-                   <h4 className="font-bold">{previewPlayers.length} Players Found</h4>
-                   <button onClick={() => setPreviewPlayers([])} className="text-xs text-red-500 hover:underline">{t.discard}</button>
+                   <div>
+                       <h4 className="font-bold text-lg">{previewPlayers.length} Players Found</h4>
+                       <p className="text-xs opacity-50">Duplicates removed automatically.</p>
+                   </div>
+                   <button onClick={resetState} className="text-xs text-red-500 hover:underline">{t.discard}</button>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {previewPlayers.map(p => (
@@ -503,7 +589,11 @@ export const SquadView = ({ t, career, onUpdateCareer }: { t: any, career: Caree
   const [activePicker, setActivePicker] = useState<'age' | 'overall' | null>(null);
   
   const handleImport = (newPlayers: Player[]) => {
-    const updatedPlayers = [...career.players, ...newPlayers];
+    // We also need to check duplicates against EXISTING career players to be safe
+    const existingIds = new Set(career.players.map(p => p.id));
+    const uniqueNewPlayers = newPlayers.filter(p => !existingIds.has(p.id));
+    
+    const updatedPlayers = [...career.players, ...uniqueNewPlayers];
     onUpdateCareer({ ...career, players: updatedPlayers });
     setImportModalOpen(false);
   };
@@ -528,7 +618,7 @@ export const SquadView = ({ t, career, onUpdateCareer }: { t: any, career: Caree
     if (!newName.trim()) return;
 
     const newPlayer: Player = {
-      id: 'manual-' + Date.now(),
+      id: 'manual-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
       name: newName,
       age: newAge,
       overall: newOvr,
