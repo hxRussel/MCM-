@@ -20,12 +20,12 @@ import {
   ClockIcon,
   PresentationChartLineIcon
 } from '@heroicons/react/24/outline';
-import { Career, Team, Transaction } from '../types';
+import { Career, Team, Transaction, Currency } from '../types';
 import { MOCK_TEAMS, STARTING_SEASONS } from '../constants';
 import { formatMoney, formatNumberInput, cleanNumberInput } from '../utils/helpers';
 import { GlassCard, Button, InputField, SelectField, ConfirmationModal, StatCard } from '../components/SharedUI';
 
-export const HomeView = ({ t, career, onSaveCareer }: { t: any, career: Career | null, onSaveCareer: (c: Career | null) => void }) => {
+export const HomeView = ({ t, career, onSaveCareer, currency }: { t: any, career: Career | null, onSaveCareer: (c: Career | null) => void, currency: Currency }) => {
   const [managerName, setManagerName] = useState('');
   const [selectedTeamId, setSelectedTeamId] = useState('');
   const [customTeamName, setCustomTeamName] = useState('');
@@ -327,10 +327,10 @@ export const HomeView = ({ t, career, onSaveCareer }: { t: any, career: Career |
                        </div>
                        <div className="text-right">
                           <div className={`font-bold text-sm ${tx.type === 'sell' ? 'text-green-500' : 'text-red-500'}`}>
-                             {tx.type === 'sell' ? '+' : '-'}{formatMoney(tx.amount)}
+                             {tx.type === 'sell' ? '+' : '-'}{formatMoney(tx.amount, currency)}
                           </div>
                           <div className="text-xs opacity-50">
-                             {formatMoney(tx.wage)}/wk
+                             {formatMoney(tx.wage, currency)}/wk
                           </div>
                        </div>
                     </div>
@@ -411,7 +411,7 @@ export const HomeView = ({ t, career, onSaveCareer }: { t: any, career: Career |
               </div>
               <div className="flex flex-col items-center justify-center py-6">
                  <div className="relative w-full">
-                    <span className="absolute left-0 top-1/2 -translate-y-1/2 text-2xl font-bold text-green-500 opacity-50">€</span>
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 text-2xl font-bold text-green-500 opacity-50">{currency}</span>
                     <input 
                       type="text"
                       inputMode="numeric"
@@ -444,7 +444,7 @@ export const HomeView = ({ t, career, onSaveCareer }: { t: any, career: Career |
               </div>
               <div className="flex flex-col items-center justify-center py-6">
                  <div className="relative w-full">
-                    <span className="absolute left-0 top-1/2 -translate-y-1/2 text-2xl font-bold text-blue-500 opacity-50">€</span>
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 text-2xl font-bold text-blue-500 opacity-50">{currency}</span>
                     <input 
                       type="text"
                       inputMode="numeric"
@@ -489,12 +489,12 @@ export const HomeView = ({ t, career, onSaveCareer }: { t: any, career: Career |
         <div className="grid grid-cols-2 gap-4 mb-4">
           <GlassCard onClick={openTransferModal} className="p-5 cursor-pointer hover:scale-[1.02] transition-transform">
              <span className="text-xs font-bold opacity-50 uppercase tracking-wider block mb-1">{t.transferBudget}</span>
-             <span className="text-2xl font-black text-green-500">{formatMoney(career.transferBudget)}</span>
+             <span className="text-2xl font-black text-green-500">{formatMoney(career.transferBudget, currency)}</span>
           </GlassCard>
           <GlassCard onClick={openWageModal} className="p-5 cursor-pointer hover:scale-[1.02] transition-transform">
              <span className="text-xs font-bold opacity-50 uppercase tracking-wider block mb-1">{t.wageBudget}</span>
              <span className="text-xl font-black text-blue-500">
-               {formatMoney(displayWageData.value)}
+               {formatMoney(displayWageData.value, currency)}
                <span className="text-xs font-normal opacity-60">{displayWageData.suffix}</span>
              </span>
           </GlassCard>
@@ -520,7 +520,7 @@ export const HomeView = ({ t, career, onSaveCareer }: { t: any, career: Career |
                        <div className="text-sm font-bold truncate max-w-[100px] sm:max-w-[150px]">{lastTransaction.playerName}</div>
                    </div>
                    <div className={`text-xs font-bold ${lastTransaction.type === 'sell' ? 'text-green-500' : 'text-red-500'}`}>
-                      {lastTransaction.type === 'sell' ? '+' : '-'}{formatMoney(lastTransaction.amount)}
+                      {lastTransaction.type === 'sell' ? '+' : '-'}{formatMoney(lastTransaction.amount, currency)}
                    </div>
                </div>
             ) : (

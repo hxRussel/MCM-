@@ -36,13 +36,13 @@ export const compressImage = (file: File, maxWidth = 300, maxHeight = 300): Prom
   });
 };
 
-export const formatMoney = (amount: number) => {
+export const formatMoney = (amount: number, currencySymbol: string = '€') => {
   if (amount >= 1000000) {
-    return `€${(amount / 1000000).toFixed(1)}M`;
+    return `${currencySymbol}${(amount / 1000000).toFixed(1)}M`;
   } else if (amount >= 1000) {
-    return `€${(amount / 1000).toFixed(1)}K`;
+    return `${currencySymbol}${(amount / 1000).toFixed(1)}K`;
   }
-  return `€${amount}`;
+  return `${currencySymbol}${amount}`;
 };
 
 export const formatNumberInput = (val: string) => {

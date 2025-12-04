@@ -10,6 +10,8 @@ export enum Theme {
   AUTO = 'auto'
 }
 
+export type Currency = '€' | '$' | '£';
+
 export enum View {
   HOME = 'home',
   SQUAD = 'squad',
@@ -122,6 +124,15 @@ export interface Translation {
   deleteConfirmTitle: string;
   deleteConfirmMessage: string;
   confirm: string;
+
+  // Settings
+  appSettings: string;
+  language: string;
+  theme: string;
+  currency: string;
+  themeLight: string;
+  themeDark: string;
+  themeAuto: string;
 
   // Career Creation & Stats
   startCareer: string;

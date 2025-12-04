@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import firebase from 'firebase/compat/app';
 import { auth, db } from './services/firebase';
-import { Language, Theme, View, Career } from './types';
+import { Language, Theme, View, Career, Currency } from './types';
 import { TRANSLATIONS } from './constants';
 import { 
   SunIcon, 
@@ -36,6 +36,8 @@ export default function App() {
   // Theme & Language State
   const [language, setLanguage] = useState<Language>(Language.IT);
   const [theme, setTheme] = useState<Theme>(Theme.AUTO);
+  const [currency, setCurrency] = useState<Currency>('€');
+  
   const t = useMemo(() => TRANSLATIONS[language], [language]);
 
   // View State
@@ -86,6 +88,11 @@ export default function App() {
             const data = docSnap.data();
             setCareer(data?.career || null);
             setAvatar(data?.avatar || null);
+            if (data?.settings) {
+              if (data.settings.language) setLanguage(data.settings.language);
+              if (data.settings.theme) setTheme(data.settings.theme);
+              if (data.settings.currency) setCurrency(data.settings.currency);
+            }
           } else {
             setCareer(null);
             setAvatar(null);
@@ -136,6 +143,31 @@ export default function App() {
         await db.collection('users').doc(user.uid).set({ nickname: displayName }, { merge: true });
       } catch (err) {
         console.error("Failed to save profile to cloud", err);
+      }
+    }
+  };
+
+  // Persist Settings
+  const saveSettings = async (newLang?: Language, newTheme?: Theme, newCurrency?: Currency) => {
+    const l = newLang || language;
+    const t = newTheme || theme;
+    const c = newCurrency || currency;
+
+    if (newLang) setLanguage(newLang);
+    if (newTheme) setTheme(newTheme);
+    if (newCurrency) setCurrency(newCurrency);
+
+    if (user) {
+      try {
+         await db.collection('users').doc(user.uid).set({
+            settings: {
+              language: l,
+              theme: t,
+              currency: c
+            }
+         }, { merge: true });
+      } catch (e) {
+        console.error("Failed to save settings", e);
       }
     }
   };
@@ -232,10 +264,20 @@ export default function App() {
 
         {/* Main Scrollable Content */}
         <main className="pt-24 pb-32 px-6 min-h-screen">
-          {currentView === View.HOME && <HomeView t={t} career={career} onSaveCareer={handleSaveCareer} />}
+          {currentView === View.HOME && <HomeView t={t} career={career} onSaveCareer={handleSaveCareer} currency={currency} />}
           {currentView === View.SQUAD && career && <SquadView t={t} career={career} onUpdateCareer={handleSaveCareer} />}
-          {currentView === View.MARKET && career && <MarketView t={t} career={career} onUpdateCareer={handleSaveCareer} />}
-          {currentView === View.SETTINGS && <SettingsView t={t} />}
+          {currentView === View.MARKET && career && <MarketView t={t} career={career} onUpdateCareer={handleSaveCareer} currency={currency} />}
+          {currentView === View.SETTINGS && 
+             <SettingsView 
+               t={t} 
+               language={language}
+               setLanguage={(l) => saveSettings(l, undefined, undefined)}
+               theme={theme}
+               setTheme={(th) => saveSettings(undefined, th, undefined)}
+               currency={currency}
+               setCurrency={(c) => saveSettings(undefined, undefined, c)}
+             />
+          }
           {currentView === View.PROFILE && 
             <ProfileView 
               user={user} 

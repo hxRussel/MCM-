@@ -7,11 +7,11 @@ import {
   ArrowTrendingUpIcon,
   ArrowTrendingDownIcon
 } from '@heroicons/react/24/outline';
-import { Career, Player, Transaction } from '../types';
+import { Career, Player, Transaction, Currency } from '../types';
 import { formatMoney, formatNumberInput, cleanNumberInput } from '../utils/helpers';
 import { GlassCard, Button, InputField, ConfirmationModal, NumberSelectionModal, RoleSelector, PlayerSelectionModal } from '../components/SharedUI';
 
-export const MarketView = ({ t, career, onUpdateCareer }: { t: any, career: Career, onUpdateCareer: (c: Career) => void }) => {
+export const MarketView = ({ t, career, onUpdateCareer, currency }: { t: any, career: Career, onUpdateCareer: (c: Career) => void, currency: Currency }) => {
   // --- Budget Editing States (Identical logic to HomeView) ---
   const [editTransferOpen, setEditTransferOpen] = useState(false);
   const [editWageOpen, setEditWageOpen] = useState(false);
@@ -225,7 +225,7 @@ export const MarketView = ({ t, career, onUpdateCareer }: { t: any, career: Care
               </div>
               <div className="flex flex-col items-center justify-center py-6">
                  <div className="relative w-full">
-                    <span className="absolute left-0 top-1/2 -translate-y-1/2 text-2xl font-bold text-green-500 opacity-50">€</span>
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 text-2xl font-bold text-green-500 opacity-50">{currency}</span>
                     <input 
                       type="text"
                       inputMode="numeric"
@@ -257,7 +257,7 @@ export const MarketView = ({ t, career, onUpdateCareer }: { t: any, career: Care
               </div>
               <div className="flex flex-col items-center justify-center py-6">
                  <div className="relative w-full">
-                    <span className="absolute left-0 top-1/2 -translate-y-1/2 text-2xl font-bold text-blue-500 opacity-50">€</span>
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 text-2xl font-bold text-blue-500 opacity-50">{currency}</span>
                     <input 
                       type="text"
                       inputMode="numeric"
@@ -302,7 +302,7 @@ export const MarketView = ({ t, career, onUpdateCareer }: { t: any, career: Care
                  <div>
                     <label className="text-xs font-bold opacity-50 uppercase tracking-wider block mb-1">{t.transferFee}</label>
                     <div className="relative">
-                       <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-green-500">€</span>
+                       <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-green-500">{currency}</span>
                        <input 
                          type="text"
                          inputMode="numeric"
@@ -316,7 +316,7 @@ export const MarketView = ({ t, career, onUpdateCareer }: { t: any, career: Care
                  <div>
                     <label className="text-xs font-bold opacity-50 uppercase tracking-wider block mb-1">{t.wage}</label>
                     <div className="relative">
-                       <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-blue-500">€</span>
+                       <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-blue-500">{currency}</span>
                        <input 
                          type="text"
                          inputMode="numeric"
@@ -384,7 +384,7 @@ export const MarketView = ({ t, career, onUpdateCareer }: { t: any, career: Care
                  <div>
                     <label className="text-xs font-bold opacity-50 uppercase tracking-wider block mb-1">{t.saleFee}</label>
                     <div className="relative">
-                       <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-green-500">€</span>
+                       <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-green-500">{currency}</span>
                        <input 
                          type="text"
                          inputMode="numeric"
@@ -398,7 +398,7 @@ export const MarketView = ({ t, career, onUpdateCareer }: { t: any, career: Care
                  <div>
                     <label className="text-xs font-bold opacity-50 uppercase tracking-wider block mb-1">{t.releasedWage}</label>
                     <div className="relative">
-                       <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-blue-500">€</span>
+                       <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-blue-500">{currency}</span>
                        <input 
                          type="text"
                          inputMode="numeric"
@@ -426,12 +426,12 @@ export const MarketView = ({ t, career, onUpdateCareer }: { t: any, career: Care
         <div className="grid grid-cols-2 gap-4">
           <GlassCard onClick={openTransferModal} className="p-5 cursor-pointer hover:scale-[1.02] transition-transform">
              <span className="text-xs font-bold opacity-50 uppercase tracking-wider block mb-1">{t.transferBudget}</span>
-             <span className="text-2xl font-black text-green-500">{formatMoney(career.transferBudget)}</span>
+             <span className="text-2xl font-black text-green-500">{formatMoney(career.transferBudget, currency)}</span>
           </GlassCard>
           <GlassCard onClick={openWageModal} className="p-5 cursor-pointer hover:scale-[1.02] transition-transform">
              <span className="text-xs font-bold opacity-50 uppercase tracking-wider block mb-1">{t.wageBudget}</span>
              <span className="text-xl font-black text-blue-500">
-               {formatMoney(displayWageData.value)}
+               {formatMoney(displayWageData.value, currency)}
                <span className="text-xs font-normal opacity-60">{displayWageData.suffix}</span>
              </span>
           </GlassCard>

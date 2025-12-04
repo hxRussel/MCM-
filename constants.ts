@@ -104,6 +104,15 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     deleteConfirmMessage: "Are you sure you want to delete your profile photo? This cannot be undone.",
     confirm: "Confirm",
 
+    // Settings
+    appSettings: "App Settings",
+    language: "Language",
+    theme: "Appearance",
+    currency: "Currency",
+    themeLight: "Light",
+    themeDark: "Dark",
+    themeAuto: "System",
+
     // Career Creation & Stats
     startCareer: "Start New Career",
     managerName: "Manager Name",
@@ -237,6 +246,15 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     deleteConfirmTitle: "Eliminare Foto?",
     deleteConfirmMessage: "Sei sicuro di voler eliminare la tua foto profilo? Questa azione non può essere annullata.",
     confirm: "Conferma",
+
+    // Settings
+    appSettings: "Impostazioni App",
+    language: "Lingua",
+    theme: "Aspetto",
+    currency: "Valuta",
+    themeLight: "Chiaro",
+    themeDark: "Scuro",
+    themeAuto: "Sistema",
 
     // Career Creation & Stats
     startCareer: "Inizia Nuova Carriera",
