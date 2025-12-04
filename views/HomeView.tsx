@@ -1,3 +1,5 @@
+
+
 import React, { useState, useRef } from 'react';
 import { 
   CalendarDaysIcon, 
@@ -636,7 +638,7 @@ export const HomeView = ({ t, career, onSaveCareer, currency }: { t: any, career
           </GlassCard>
           <GlassCard onClick={openWageModal} className="p-5 cursor-pointer hover:scale-[1.02] transition-transform">
              <span className="text-xs font-bold opacity-50 uppercase tracking-wider block mb-1">{t.wageBudget}</span>
-             <span className="text-xl font-black text-blue-500">
+             <span className="text-2xl font-black text-blue-500">
                {formatMoney(displayWageData.value, currency)}
                <span className="text-xs font-normal opacity-60">{displayWageData.suffix}</span>
              </span>
