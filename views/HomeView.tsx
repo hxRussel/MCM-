@@ -17,7 +17,8 @@ import {
   TrophyIcon,
   ClockIcon,
   PresentationChartLineIcon,
-  PhotoIcon
+  PhotoIcon,
+  PencilIcon
 } from '@heroicons/react/24/outline';
 import { Career, Team, Transaction, Currency, Player } from '../types';
 import { MOCK_TEAMS, STARTING_SEASONS } from '../constants';
@@ -44,6 +45,15 @@ export const HomeView = ({ t, career, onSaveCareer, currency }: { t: any, career
   // New Modal States
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showTrendsModal, setShowTrendsModal] = useState(false);
+
+  // Transaction Edit/Delete States
+  const [deletingTx, setDeletingTx] = useState<Transaction | null>(null);
+  const [editingTx, setEditingTx] = useState<Transaction | null>(null);
+  // Edit Form
+  const [editTxName, setEditTxName] = useState('');
+  const [editTxType, setEditTxType] = useState<'buy' | 'sell'>('buy');
+  const [editTxAmount, setEditTxAmount] = useState('');
+  const [editTxWage, setEditTxWage] = useState('');
 
   // Budget Editing States
   const [editTransferOpen, setEditTransferOpen] = useState(false);
@@ -158,6 +168,93 @@ export const HomeView = ({ t, career, onSaveCareer, currency }: { t: any, career
   const handleStartChangeTeam = () => {
     setShowEndSeasonConfirm(false);
     setShowChangeTeamInput(true);
+  };
+
+  // --- Transaction Management Logic ---
+
+  const prepareEditTransaction = (tx: Transaction) => {
+    setEditingTx(tx);
+    setEditTxName(tx.playerName);
+    setEditTxType(tx.type);
+    setEditTxAmount(tx.amount.toString());
+    setEditTxWage(tx.wage.toString());
+  };
+
+  const handleDeleteTransaction = () => {
+    if (!career || !deletingTx) return;
+
+    let newTransferBudget = career.transferBudget;
+    let newWageBudget = career.wageBudget;
+
+    // REVERSE the impact of the deleted transaction
+    if (deletingTx.type === 'buy') {
+      // Originally: Budget - Amount. Reversal: Budget + Amount.
+      newTransferBudget += deletingTx.amount;
+      newWageBudget += deletingTx.wage;
+    } else {
+      // Originally: Budget + Amount. Reversal: Budget - Amount.
+      newTransferBudget -= deletingTx.amount;
+      newWageBudget -= deletingTx.wage;
+    }
+
+    const updatedTransactions = career.transactions.filter(t => t.id !== deletingTx.id);
+
+    onSaveCareer({
+      ...career,
+      transferBudget: newTransferBudget,
+      wageBudget: newWageBudget,
+      transactions: updatedTransactions
+    });
+
+    setDeletingTx(null);
+  };
+
+  const handleSaveTransactionEdit = () => {
+    if (!career || !editingTx) return;
+
+    const newAmount = Number(cleanNumberInput(editTxAmount));
+    const newWage = Number(cleanNumberInput(editTxWage));
+
+    let currentTransferBudget = career.transferBudget;
+    let currentWageBudget = career.wageBudget;
+
+    // 1. Revert Old Transaction
+    if (editingTx.type === 'buy') {
+       currentTransferBudget += editingTx.amount;
+       currentWageBudget += editingTx.wage;
+    } else {
+       currentTransferBudget -= editingTx.amount;
+       currentWageBudget -= editingTx.wage;
+    }
+
+    // 2. Apply New Transaction
+    if (editTxType === 'buy') {
+       currentTransferBudget -= newAmount;
+       currentWageBudget -= newWage;
+    } else {
+       currentTransferBudget += newAmount;
+       currentWageBudget += newWage;
+    }
+
+    // 3. Update List
+    const updatedTransactions = career.transactions.map(t => 
+       t.id === editingTx.id ? { 
+         ...t, 
+         playerName: editTxName, 
+         type: editTxType, 
+         amount: newAmount, 
+         wage: newWage 
+       } : t
+    );
+
+    onSaveCareer({
+      ...career,
+      transferBudget: currentTransferBudget,
+      wageBudget: currentWageBudget,
+      transactions: updatedTransactions
+    });
+
+    setEditingTx(null);
   };
 
   // Handlers for Budget Modals
@@ -374,6 +471,15 @@ export const HomeView = ({ t, career, onSaveCareer, currency }: { t: any, career
         t={t}
       />
 
+      <ConfirmationModal 
+        isOpen={!!deletingTx}
+        title="Delete Transaction?"
+        message="This will reverse the financial impact on your budget. Are you sure?"
+        onConfirm={handleDeleteTransaction}
+        onCancel={() => setDeletingTx(null)}
+        t={t}
+      />
+
       {/* End Season Confirmation with Change Team Option */}
       <ConfirmationModal 
         isOpen={showEndSeasonConfirm}
@@ -444,6 +550,58 @@ export const HomeView = ({ t, career, onSaveCareer, currency }: { t: any, career
         </div>
       )}
 
+      {/* Edit Transaction Modal */}
+      {editingTx && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+           <GlassCard className="w-full max-w-sm p-6 space-y-4">
+              <div className="flex justify-between items-center border-b border-obsidian/5 dark:border-ghost/5 pb-4">
+                 <h3 className="text-xl font-bold">Edit Transaction</h3>
+                 <button onClick={() => setEditingTx(null)}><XMarkIcon className="w-6 h-6" /></button>
+              </div>
+
+              <InputField label={t.playerName} type="text" value={editTxName} onChange={(e) => setEditTxName(e.target.value)} />
+              
+              <SelectField 
+                label="Transaction Type"
+                value={editTxType}
+                onChange={(e: any) => setEditTxType(e.target.value)}
+                options={[
+                   { value: 'buy', label: t.bought },
+                   { value: 'sell', label: t.sold }
+                ]}
+              />
+
+              <div className="grid grid-cols-2 gap-3">
+                 <div>
+                    <label className="text-xs font-bold opacity-50 uppercase tracking-wider block mb-1">{t.transferFee}</label>
+                    <input 
+                        type="text" 
+                        inputMode="numeric"
+                        value={formatNumberInput(editTxAmount)}
+                        onChange={(e) => setEditTxAmount(cleanNumberInput(e.target.value))}
+                        className="w-full p-2 rounded-lg bg-white/5 border border-obsidian/10 dark:border-ghost/20 outline-none focus:ring-1 focus:ring-mint"
+                    />
+                 </div>
+                 <div>
+                    <label className="text-xs font-bold opacity-50 uppercase tracking-wider block mb-1">{t.wage}</label>
+                    <input 
+                        type="text" 
+                        inputMode="numeric"
+                        value={formatNumberInput(editTxWage)}
+                        onChange={(e) => setEditTxWage(cleanNumberInput(e.target.value))}
+                        className="w-full p-2 rounded-lg bg-white/5 border border-obsidian/10 dark:border-ghost/20 outline-none focus:ring-1 focus:ring-mint"
+                    />
+                 </div>
+              </div>
+
+              <div className="pt-2 flex gap-3">
+                 <Button variant="ghost" onClick={() => setEditingTx(null)}>{t.cancel}</Button>
+                 <Button onClick={handleSaveTransactionEdit}>{t.saveChanges}</Button>
+              </div>
+           </GlassCard>
+        </div>
+      )}
+
       {/* History Modal */}
       {showHistoryModal && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
@@ -457,22 +615,43 @@ export const HomeView = ({ t, career, onSaveCareer, currency }: { t: any, career
               </div>
               <div className="flex-1 overflow-y-auto space-y-2">
                  {sortedTransactions.length > 0 ? sortedTransactions.map(tx => (
-                    <div key={tx.id} className="flex items-center justify-between p-3 rounded-xl bg-black/5 dark:bg-white/5">
+                    <div key={tx.id} className="group flex items-center justify-between p-3 rounded-xl bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-colors">
                        <div className="flex items-center gap-3">
                           <div className={`p-2 rounded-full ${tx.type === 'sell' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
                              {tx.type === 'sell' ? <ArrowUpRightIcon className="w-4 h-4" /> : <ArrowDownRightIcon className="w-4 h-4" />}
                           </div>
                           <div>
-                             <div className="font-bold text-sm">{tx.playerName}</div>
+                             <div className="font-bold text-sm max-w-[100px] sm:max-w-none truncate">{tx.playerName}</div>
                              <div className="text-xs opacity-50 uppercase">{tx.type === 'sell' ? t.sold : t.bought}</div>
                           </div>
                        </div>
-                       <div className="text-right">
-                          <div className={`font-bold text-sm ${tx.type === 'sell' ? 'text-green-500' : 'text-red-500'}`}>
-                             {tx.type === 'sell' ? '+' : '-'}{formatMoney(tx.amount, currency)}
+                       
+                       <div className="flex items-center gap-3">
+                          <div className="text-right">
+                              <div className={`font-bold text-sm ${tx.type === 'sell' ? 'text-green-500' : 'text-red-500'}`}>
+                                {tx.type === 'sell' ? '+' : '-'}{formatMoney(tx.amount, currency)}
+                              </div>
+                              <div className="text-xs opacity-50">
+                                {formatMoney(tx.wage, currency)}/wk
+                              </div>
                           </div>
-                          <div className="text-xs opacity-50">
-                             {formatMoney(tx.wage, currency)}/wk
+                          
+                          {/* Actions (visible on group hover or always on mobile if wanted, but desktop hover is cleaner) */}
+                          <div className="flex gap-1 pl-2 border-l border-obsidian/5 dark:border-ghost/5">
+                             <button 
+                               onClick={() => prepareEditTransaction(tx)}
+                               className="p-1.5 rounded-lg text-obsidian/50 dark:text-ghost/50 hover:text-mint hover:bg-mint/10"
+                               title="Edit"
+                             >
+                                <PencilIcon className="w-4 h-4" />
+                             </button>
+                             <button 
+                               onClick={() => setDeletingTx(tx)}
+                               className="p-1.5 rounded-lg text-obsidian/50 dark:text-ghost/50 hover:text-red-500 hover:bg-red-500/10"
+                               title="Delete"
+                             >
+                                <TrashIcon className="w-4 h-4" />
+                             </button>
                           </div>
                        </div>
                     </div>
