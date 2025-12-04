@@ -1,8 +1,5 @@
-
-
 import React, { useState, useRef } from 'react';
 import { 
-  BriefcaseIcon, 
   CalendarDaysIcon, 
   CurrencyDollarIcon, 
   UserGroupIcon, 
@@ -234,8 +231,8 @@ export const HomeView = ({ t, career, onSaveCareer, currency }: { t: any, career
       <div className="flex flex-col items-center justify-center min-h-[70vh] animate-fade-in">
         <GlassCard className="w-full max-w-lg p-8">
            <div className="text-center mb-8">
-             <div className="w-16 h-16 bg-mint/20 text-mint rounded-2xl flex items-center justify-center mx-auto mb-4">
-               <BriefcaseIcon className="w-8 h-8" />
+             <div className="w-20 h-20 bg-mint/10 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-mint/10">
+               <span className="font-logo text-6xl text-mint translate-y-[-2px]">+</span>
              </div>
              <h2 className="text-3xl font-black">{t.startCareer}</h2>
              <p className="opacity-60 mt-2">Begin your journey to glory.</p>
@@ -602,7 +599,7 @@ export const HomeView = ({ t, career, onSaveCareer, currency }: { t: any, career
       )}
       
       {/* Header Card */}
-      <GlassCard className="relative overflow-hidden p-6 text-center border-t-4 border-t-mint flex flex-col items-center justify-center">
+      <GlassCard className="relative overflow-hidden p-6 text-center border-t-4 border-t-mint dark:border-t-mint flex flex-col items-center justify-center">
         <div className="absolute top-0 right-0 w-32 h-32 bg-mint/10 rounded-full blur-3xl pointer-events-none"></div>
         
         <div className="flex items-center gap-4 mb-2">
