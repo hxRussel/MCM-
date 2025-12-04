@@ -247,17 +247,19 @@ export const HomeView = ({ t, career, onSaveCareer, currency }: { t: any, career
     );
   }
 
-  // Calculate Stats
-  const playerCount = career.players.length;
+  // Calculate Stats - EXCLUDE LOANED PLAYERS
+  const activePlayers = career.players.filter(p => !p.isOnLoan);
+  
+  const playerCount = activePlayers.length;
   const avgAge = playerCount > 0 
-    ? (career.players.reduce((sum, p) => sum + p.age, 0) / playerCount).toFixed(1) 
+    ? (activePlayers.reduce((sum, p) => sum + p.age, 0) / playerCount).toFixed(1) 
     : "0";
   const avgOvr = playerCount > 0
-    ? (career.players.reduce((sum, p) => sum + p.overall, 0) / playerCount).toFixed(0)
+    ? (activePlayers.reduce((sum, p) => sum + p.overall, 0) / playerCount).toFixed(0)
     : "0";
-  const over22 = career.players.filter(p => p.age > 22).length;
-  const homeGrown = career.players.filter(p => p.isHomegrown).length;
-  const nonEU = career.players.filter(p => p.isNonEU).length;
+  const over22 = activePlayers.filter(p => p.age > 22).length;
+  const homeGrown = activePlayers.filter(p => p.isHomegrown).length;
+  const nonEU = activePlayers.filter(p => p.isNonEU).length;
 
   const displayWageData = getDisplayWage();
   const sortedTransactions = [...(career.transactions || [])].reverse();

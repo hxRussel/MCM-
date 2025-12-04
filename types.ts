@@ -38,6 +38,7 @@ export interface Player {
   wage: number;
   isHomegrown: boolean;
   isNonEU: boolean;
+  isOnLoan?: boolean; // New field
 }
 
 export interface Team {
@@ -206,6 +207,8 @@ export interface Translation {
   positionDEF: string;
   positionMID: string;
   positionFWD: string;
+  positionLoan: string; // New
+  onLoan: string; // New
   editPlayer: string;
   releasePlayer: string;
   releaseConfirmTitle: string;

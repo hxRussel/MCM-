@@ -12,8 +12,11 @@ import {
   CheckCircleIcon,
   XMarkIcon,
   HomeIcon,
-  GlobeEuropeAfricaIcon,
-  PlusIcon
+  GlobeEuropeAfricaIcon, 
+  PlusIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  PaperAirplaneIcon
 } from '@heroicons/react/24/outline';
 import { GoogleGenAI } from "@google/genai";
 import { Career, Player } from '../types';
@@ -40,6 +43,7 @@ const PlayerCard: React.FC<{ player: Player; onEdit: () => void; onDelete: () =>
            <span>• {player.age}yo</span>
            {player.isHomegrown && <HomeIcon className="w-3 h-3 text-mint" title="Homegrown" />}
            {player.isNonEU && <GlobeEuropeAfricaIcon className="w-3 h-3 text-orange-500" title="Non-EU" />}
+           {player.isOnLoan && <PaperAirplaneIcon className="w-3 h-3 text-blue-400" title="On Loan" />}
         </div>
       </div>
       <div className="flex gap-2 shrink-0">
@@ -59,6 +63,48 @@ const PlayerCard: React.FC<{ player: Player; onEdit: () => void; onDelete: () =>
         </button>
       </div>
     </GlassCard>
+  );
+};
+
+// Collapsible Section Component
+interface SquadSectionProps {
+  title: string;
+  players: Player[];
+  onEdit: (p: Player) => void;
+  onDelete: (id: string) => void;
+}
+
+const SquadSection: React.FC<SquadSectionProps> = ({ title, players, onEdit, onDelete }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  if (players.length === 0) return null;
+
+  return (
+    <div className="space-y-2">
+      <button 
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between p-3 rounded-xl bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-colors group"
+      >
+        <div className="flex items-center gap-2">
+           <h3 className="text-xs font-bold uppercase tracking-widest opacity-60">{title}</h3>
+           <span className="text-xs font-bold bg-white dark:bg-black px-2 py-0.5 rounded-full opacity-50">{players.length}</span>
+        </div>
+        {isOpen ? <ChevronUpIcon className="w-4 h-4 opacity-50" /> : <ChevronDownIcon className="w-4 h-4 opacity-50" />}
+      </button>
+      
+      {isOpen && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 animate-fade-in pl-2 border-l-2 border-obsidian/5 dark:border-ghost/5">
+           {players.map(player => (
+             <PlayerCard 
+               key={player.id} 
+               player={player} 
+               onEdit={() => onEdit(player)}
+               onDelete={() => onDelete(player.id)}
+             />
+           ))}
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -144,11 +190,11 @@ const EditPlayerModal = ({ isOpen, onClose, player, onSave, t }: any) => {
         </div>
 
         {/* Attributes Toggles */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-3 gap-2">
            <button 
              onClick={() => handleChange('isHomegrown', !formData.isHomegrown)}
              className={`
-               p-3 rounded-xl flex items-center justify-center gap-2 font-bold text-sm transition-all duration-200 border border-transparent
+               p-2 rounded-xl flex flex-col items-center justify-center gap-1 font-bold text-xs transition-all duration-200 border border-transparent h-16
                ${formData.isHomegrown 
                  ? 'bg-mint/10 border-mint text-mint-text' 
                  : 'bg-black/5 dark:bg-white/5 opacity-60 hover:opacity-100'}
@@ -161,7 +207,7 @@ const EditPlayerModal = ({ isOpen, onClose, player, onSave, t }: any) => {
            <button 
              onClick={() => handleChange('isNonEU', !formData.isNonEU)}
              className={`
-               p-3 rounded-xl flex items-center justify-center gap-2 font-bold text-sm transition-all duration-200 border border-transparent
+               p-2 rounded-xl flex flex-col items-center justify-center gap-1 font-bold text-xs transition-all duration-200 border border-transparent h-16
                ${formData.isNonEU 
                  ? 'bg-orange-500/10 border-orange-500 text-orange-500' 
                  : 'bg-black/5 dark:bg-white/5 opacity-60 hover:opacity-100'}
@@ -169,6 +215,19 @@ const EditPlayerModal = ({ isOpen, onClose, player, onSave, t }: any) => {
            >
              <GlobeEuropeAfricaIcon className={`w-5 h-5 ${formData.isNonEU ? 'text-orange-500' : ''}`} />
              {t.nonEU}
+           </button>
+
+           <button 
+             onClick={() => handleChange('isOnLoan', !formData.isOnLoan)}
+             className={`
+               p-2 rounded-xl flex flex-col items-center justify-center gap-1 font-bold text-xs transition-all duration-200 border border-transparent h-16
+               ${formData.isOnLoan 
+                 ? 'bg-blue-500/10 border-blue-500 text-blue-500' 
+                 : 'bg-black/5 dark:bg-white/5 opacity-60 hover:opacity-100'}
+             `}
+           >
+             <PaperAirplaneIcon className={`w-5 h-5 -rotate-45 ${formData.isOnLoan ? 'text-blue-500' : ''}`} />
+             {t.positionLoan}
            </button>
         </div>
 
@@ -297,7 +356,8 @@ const ImportSquadModal = ({ isOpen, onClose, onImport, t }: any) => {
         value: 1000000,
         wage: 5000,
         isHomegrown: false,
-        isNonEU: false
+        isNonEU: false,
+        isOnLoan: false
       }));
 
       setPreviewPlayers(formattedPlayers);
@@ -475,7 +535,8 @@ export const SquadView = ({ t, career, onUpdateCareer }: { t: any, career: Caree
       value: 0,
       wage: 0,
       isHomegrown: false,
-      isNonEU: false
+      isNonEU: false,
+      isOnLoan: false
     };
 
     onUpdateCareer({ ...career, players: [...career.players, newPlayer] });
@@ -498,12 +559,16 @@ export const SquadView = ({ t, career, onUpdateCareer }: { t: any, career: Caree
     return 'OTHER';
   };
 
+  const loanedPlayers = career.players.filter(p => p.isOnLoan);
+  const activePlayers = career.players.filter(p => !p.isOnLoan);
+
   const sections = {
-    [t.positionGK]: career.players.filter(p => categorizePlayer(p.position) === 'GK'),
-    [t.positionDEF]: career.players.filter(p => categorizePlayer(p.position) === 'DEF'),
-    [t.positionMID]: career.players.filter(p => categorizePlayer(p.position) === 'MID'),
-    [t.positionFWD]: career.players.filter(p => categorizePlayer(p.position) === 'FWD'),
-    "Others / Unassigned": career.players.filter(p => categorizePlayer(p.position) === 'OTHER'),
+    [t.positionGK]: activePlayers.filter(p => categorizePlayer(p.position) === 'GK'),
+    [t.positionDEF]: activePlayers.filter(p => categorizePlayer(p.position) === 'DEF'),
+    [t.positionMID]: activePlayers.filter(p => categorizePlayer(p.position) === 'MID'),
+    [t.positionFWD]: activePlayers.filter(p => categorizePlayer(p.position) === 'FWD'),
+    "Others / Unassigned": activePlayers.filter(p => categorizePlayer(p.position) === 'OTHER'),
+    [t.positionLoan]: loanedPlayers
   };
 
   return (
@@ -574,7 +639,7 @@ export const SquadView = ({ t, career, onUpdateCareer }: { t: any, career: Caree
       <div className="flex justify-between items-end">
         <div>
            <h2 className="text-3xl font-black">{t.navSquad}</h2>
-           <p className="opacity-60">{career.players.length} Players</p>
+           <p className="opacity-60">{career.players.length} Players ({loanedPlayers.length} Loaned)</p>
         </div>
         <div className="flex gap-2">
           <button 
@@ -595,23 +660,15 @@ export const SquadView = ({ t, career, onUpdateCareer }: { t: any, career: Caree
         </div>
       </div>
 
-      {/* Render Groups */}
+      {/* Render Collapsible Groups */}
       {Object.entries(sections).map(([label, players]) => (
-        players.length > 0 && (
-          <div key={label}>
-             <h3 className="text-xs font-bold uppercase tracking-widest opacity-40 mb-3 ml-1">{label}</h3>
-             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-               {players.map(player => (
-                 <PlayerCard 
-                   key={player.id} 
-                   player={player} 
-                   onEdit={() => setEditingPlayer(player)}
-                   onDelete={() => setDeletingPlayerId(player.id)}
-                 />
-               ))}
-             </div>
-          </div>
-        )
+        <SquadSection 
+          key={label}
+          title={label}
+          players={players}
+          onEdit={(p) => setEditingPlayer(p)}
+          onDelete={(id) => setDeletingPlayerId(id)}
+        />
       ))}
 
       {career.players.length === 0 && (
