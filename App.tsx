@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import firebase from 'firebase/compat/app';
 import { auth, db } from './services/firebase';
@@ -368,7 +367,7 @@ export default function App() {
         
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-black tracking-tighter mb-2 bg-gradient-to-r from-obsidian to-obsidian/60 dark:from-ghost dark:to-ghost/60 bg-clip-text text-transparent">
+          <h1 className="text-4xl font-logo tracking-tighter mb-2 bg-gradient-to-r from-obsidian to-obsidian/60 dark:from-ghost dark:to-ghost/60 bg-clip-text text-transparent">
             MCM<span className="text-mint">+</span>
           </h1>
           <p className="opacity-60 text-sm font-medium">{t.subtitle}</p>
