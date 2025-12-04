@@ -221,4 +221,55 @@ export interface Translation {
   positionDEF: string;
   positionMID: string;
   positionFWD: string;
-  positionLoan: string
+  positionLoan: string;
+  onLoan: string;
+  editPlayer: string;
+  releasePlayer: string;
+  releaseConfirmTitle: string;
+  releaseConfirmMessage: string;
+  labelName: string;
+  labelAge: string;
+  labelOverall: string;
+  labelRole: string;
+  playersCount: string;
+  loanedCount: string;
+  
+  // Roles Short
+  roleShortGK: string;
+  roleShortDEF: string;
+  roleShortMID: string;
+  roleShortFWD: string;
+
+  // Market
+  buyPlayer: string;
+  sellPlayer: string;
+  signingModalTitle: string;
+  sellingModalTitle: string;
+  selectPlayerToSell: string;
+  playerName: string;
+  transferFee: string;
+  wage: string;
+  saleFee: string;
+  releasedWage: string;
+  confirmSigning: string;
+  confirmSale: string;
+  fundsError: string;
+  bought: string;
+  sold: string;
+
+  // Club View
+  clubOverview: string;
+  trophyCabinet: string;
+  addTrophy: string;
+  addTrophyPlaceholder: string;
+  seasonalEvents: string;
+  preMatchEvents: string;
+  generateEvent: string;
+  activeEvents: string;
+  maxEventsReached: string;
+  aiEventGenerator: string;
+  regenerate: string;
+  saveEvent: string;
+  deleteEventConfirm: string;
+  deleteEventMessage: string;
+}

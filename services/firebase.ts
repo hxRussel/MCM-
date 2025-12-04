@@ -20,3 +20,16 @@ const app = !firebase.apps.length ? firebase.initializeApp(firebaseConfig) : fir
 export const auth = app.auth();
 export const db = app.firestore();
 export const storage = app.storage();
+
+// Enable offline persistence
+// This allows the app to work while offline and load faster on resume, preventing white screens
+db.enablePersistence({ synchronizeTabs: true })
+  .catch((err) => {
+      if (err.code == 'failed-precondition') {
+          // Multiple tabs open, persistence can only be enabled in one tab at a a time.
+          console.warn('Firebase persistence failed: Multiple tabs open');
+      } else if (err.code == 'unimplemented') {
+          // The current browser does not support all of the features required to enable persistence
+          console.warn('Firebase persistence not supported in this environment');
+      }
+  });
