@@ -170,9 +170,14 @@ export interface Translation {
   buyPlayer: string;
   sellPlayer: string;
   signingModalTitle: string;
+  sellingModalTitle: string;
+  selectPlayerToSell: string;
   playerName: string;
   transferFee: string;
   wage: string;
+  releasedWage: string;
+  saleFee: string;
   confirmSigning: string;
+  confirmSale: string;
   fundsError: string;
 }

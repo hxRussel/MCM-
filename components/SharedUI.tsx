@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
-import { EyeIcon, EyeSlashIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { EyeIcon, EyeSlashIcon, XMarkIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { Player } from '../types';
 
 export const InputField = ({ 
   label, 
@@ -212,6 +213,66 @@ export const NumberSelectionModal = ({ isOpen, onClose, title, min, max, onSelec
               {num}
             </button>
           ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export const PlayerSelectionModal = ({ isOpen, onClose, title, players, onSelect }: { isOpen: boolean, onClose: () => void, title: string, players: Player[], onSelect: (p: Player) => void }) => {
+  if (!isOpen) return null;
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const filteredPlayers = players.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
+
+  return (
+    <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+      <div className="bg-white dark:bg-obsidian border border-white/10 w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden animate-scale-in flex flex-col max-h-[70vh]">
+        
+        <div className="p-4 border-b border-obsidian/5 dark:border-ghost/5 flex flex-col gap-3 bg-white/50 dark:bg-black/50 backdrop-blur-md">
+          <div className="flex justify-between items-center">
+             <h3 className="font-black text-lg">{title}</h3>
+             <button onClick={onClose} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5">
+               <XMarkIcon className="w-5 h-5" />
+             </button>
+          </div>
+          <div className="relative">
+             <input 
+               type="text" 
+               placeholder="Search player..." 
+               value={searchTerm}
+               onChange={(e) => setSearchTerm(e.target.value)}
+               className="w-full pl-9 pr-4 py-2 rounded-lg bg-black/5 dark:bg-white/5 outline-none focus:ring-1 focus:ring-mint"
+             />
+             <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 opacity-50" />
+          </div>
+        </div>
+
+        <div className="overflow-y-auto p-2">
+          {filteredPlayers.length > 0 ? (
+            <div className="grid grid-cols-1 gap-1">
+              {filteredPlayers.map((player) => {
+                 let ovrColor = "text-obsidian dark:text-ghost";
+                 if (player.overall >= 80) ovrColor = "text-mint";
+                 
+                 return (
+                  <button
+                    key={player.id}
+                    onClick={() => { onSelect(player); onClose(); }}
+                    className="p-3 rounded-xl flex items-center gap-3 hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-left group"
+                  >
+                    <div className={`font-black text-sm w-8 text-center ${ovrColor}`}>{player.overall}</div>
+                    <div className="flex-1 min-w-0">
+                       <div className="font-bold truncate">{player.name}</div>
+                       <div className="text-xs opacity-50">{player.position} • {player.age}yo</div>
+                    </div>
+                  </button>
+                 );
+              })}
+            </div>
+          ) : (
+             <div className="text-center py-8 opacity-50 text-sm">No players found</div>
+          )}
         </div>
       </div>
     </div>

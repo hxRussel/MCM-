@@ -9,7 +9,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { Career, Player } from '../types';
 import { formatMoney, formatNumberInput, cleanNumberInput } from '../utils/helpers';
-import { GlassCard, Button, InputField, ConfirmationModal, NumberSelectionModal, RoleSelector } from '../components/SharedUI';
+import { GlassCard, Button, InputField, ConfirmationModal, NumberSelectionModal, RoleSelector, PlayerSelectionModal } from '../components/SharedUI';
 
 export const MarketView = ({ t, career, onUpdateCareer }: { t: any, career: Career, onUpdateCareer: (c: Career) => void }) => {
   // --- Budget Editing States (Identical logic to HomeView) ---
@@ -29,6 +29,13 @@ export const MarketView = ({ t, career, onUpdateCareer }: { t: any, career: Care
   const [newPlayerPos, setNewPlayerPos] = useState('MID');
   const [activePicker, setActivePicker] = useState<'age' | 'overall' | null>(null);
   const [signingError, setSigningError] = useState<string | null>(null);
+
+  // --- Selling States ---
+  const [sellingModalOpen, setSellingModalOpen] = useState(false);
+  const [playerSelectionOpen, setPlayerSelectionOpen] = useState(false);
+  const [selectedSellPlayer, setSelectedSellPlayer] = useState<Player | null>(null);
+  const [sellFee, setSellFee] = useState('');
+  const [sellWage, setSellWage] = useState('');
 
   // --- Budget Helpers (Shared logic with HomeView) ---
   const openTransferModal = () => {
@@ -136,6 +143,39 @@ export const MarketView = ({ t, career, onUpdateCareer }: { t: any, career: Care
     setSigningWage('');
   };
 
+  // --- Selling Logic ---
+  const handleSelectPlayerToSell = (player: Player) => {
+    setSelectedSellPlayer(player);
+    // Auto-fill wage (ensure we assume weekly as stored in DB)
+    setSellWage(player.wage.toString());
+    // Suggest value as sell fee
+    setSellFee(player.value.toString());
+  };
+
+  const handleSellPlayer = () => {
+    if (!selectedSellPlayer) return;
+    
+    const fee = Number(cleanNumberInput(sellFee));
+    const wage = Number(cleanNumberInput(sellWage));
+
+    // Logic: Add Fee to Budget, Add Wage back to Budget, Remove Player
+    const updatedPlayers = career.players.filter(p => p.id !== selectedSellPlayer.id);
+    
+    const updatedCareer = {
+      ...career,
+      transferBudget: career.transferBudget + fee,
+      wageBudget: career.wageBudget + wage,
+      players: updatedPlayers
+    };
+
+    onUpdateCareer(updatedCareer);
+    setSellingModalOpen(false);
+
+    // Reset Form
+    setSelectedSellPlayer(null);
+    setSellFee('');
+    setSellWage('');
+  };
 
   return (
     <div className="space-y-6 pb-24 animate-fade-in">
@@ -274,6 +314,74 @@ export const MarketView = ({ t, career, onUpdateCareer }: { t: any, career: Care
         </div>
       )}
 
+      {/* --- Selling Modal --- */}
+      {sellingModalOpen && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+           <PlayerSelectionModal 
+              isOpen={playerSelectionOpen}
+              onClose={() => setPlayerSelectionOpen(false)}
+              title={t.selectPlayerToSell}
+              players={career.players}
+              onSelect={handleSelectPlayerToSell}
+           />
+
+           <GlassCard className="w-full max-w-md p-6 space-y-6">
+              <div className="flex justify-between items-center border-b border-obsidian/5 dark:border-ghost/5 pb-4">
+                 <h3 className="text-xl font-bold">{t.sellingModalTitle}</h3>
+                 <button onClick={() => setSellingModalOpen(false)}><XMarkIcon className="w-6 h-6" /></button>
+              </div>
+
+              <div className="space-y-1">
+                 <label className="text-xs font-bold opacity-50 uppercase tracking-wider">{t.playerName}</label>
+                 <div 
+                   onClick={() => setPlayerSelectionOpen(true)}
+                   className="w-full p-4 rounded-xl bg-black/5 dark:bg-white/5 border border-transparent hover:border-mint transition-all cursor-pointer flex items-center justify-between"
+                 >
+                   <span className={selectedSellPlayer ? 'font-bold' : 'opacity-50'}>
+                     {selectedSellPlayer ? selectedSellPlayer.name : 'Select a player...'}
+                   </span>
+                   <UserPlusIcon className="w-5 h-5 opacity-50" />
+                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                 <div>
+                    <label className="text-xs font-bold opacity-50 uppercase tracking-wider block mb-1">{t.saleFee}</label>
+                    <div className="relative">
+                       <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-green-500">€</span>
+                       <input 
+                         type="text"
+                         inputMode="numeric"
+                         value={formatNumberInput(sellFee)}
+                         onChange={(e) => setSellFee(cleanNumberInput(e.target.value))}
+                         className="w-full py-3 pl-8 pr-3 rounded-lg bg-white/5 border border-obsidian/10 dark:border-ghost/20 font-black text-lg text-green-500 outline-none focus:border-green-500 transition-all"
+                         placeholder="0"
+                       />
+                    </div>
+                 </div>
+                 <div>
+                    <label className="text-xs font-bold opacity-50 uppercase tracking-wider block mb-1">{t.releasedWage}</label>
+                    <div className="relative">
+                       <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-blue-500">€</span>
+                       <input 
+                         type="text"
+                         inputMode="numeric"
+                         value={formatNumberInput(sellWage)}
+                         onChange={(e) => setSellWage(cleanNumberInput(e.target.value))}
+                         className="w-full py-3 pl-8 pr-3 rounded-lg bg-white/5 border border-obsidian/10 dark:border-ghost/20 font-black text-lg text-blue-500 outline-none focus:border-blue-500 transition-all"
+                         placeholder="0"
+                       />
+                    </div>
+                 </div>
+              </div>
+
+              <Button onClick={handleSellPlayer} disabled={!selectedSellPlayer} variant="danger">
+                 {t.confirmSale}
+              </Button>
+           </GlassCard>
+        </div>
+      )}
+
       {/* --- Budget Overview (Same as Home) --- */}
       <div>
         <h3 className="text-lg font-bold mb-3 px-1 flex items-center gap-2 opacity-80">
@@ -308,8 +416,8 @@ export const MarketView = ({ t, career, onUpdateCareer }: { t: any, career: Care
          </GlassCard>
 
          <GlassCard 
-           onClick={() => {}} 
-           className="p-6 cursor-pointer hover:bg-red-500/10 border-red-500/20 flex flex-col items-center justify-center gap-2 group transition-all opacity-50"
+           onClick={() => setSellingModalOpen(true)} 
+           className="p-6 cursor-pointer hover:bg-red-500/10 border-red-500/20 flex flex-col items-center justify-center gap-2 group transition-all"
          >
            <div className="p-4 rounded-full bg-red-500 text-white shadow-lg group-hover:scale-110 transition-transform">
              <CurrencyDollarIcon className="w-8 h-8" />
