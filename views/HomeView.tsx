@@ -19,7 +19,7 @@ import {
   PresentationChartLineIcon,
   PhotoIcon
 } from '@heroicons/react/24/outline';
-import { Career, Team, Transaction, Currency } from '../types';
+import { Career, Team, Transaction, Currency, Player } from '../types';
 import { MOCK_TEAMS, STARTING_SEASONS } from '../constants';
 import { formatMoney, formatNumberInput, cleanNumberInput, compressImage } from '../utils/helpers';
 import { GlassCard, Button, InputField, SelectField, ConfirmationModal, StatCard } from '../components/SharedUI';
@@ -83,13 +83,19 @@ export const HomeView = ({ t, career, onSaveCareer, currency }: { t: any, career
       teamData = found;
     }
 
+    // Sanitize players to ensure no undefined fields (especially isOnLoan)
+    const sanitizedPlayers: Player[] = teamData.players.map(p => ({
+        ...p,
+        isOnLoan: p.isOnLoan === true
+    }));
+
     const newCareer: Career = {
       managerName: managerName || 'Manager',
       teamName: teamData.name,
       teamLogo: teamLogo || undefined,
       transferBudget: teamData.transferBudget,
       wageBudget: teamData.wageBudget,
-      players: teamData.players,
+      players: sanitizedPlayers,
       startDate: new Date().toISOString(),
       season: startingSeason,
       wageDisplayMode: 'weekly',

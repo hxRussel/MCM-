@@ -115,14 +115,21 @@ export default function App() {
   }, []);
 
   // Handlers for Firestore Persistence
+  // HELPER: Sanitize data to remove undefined values which Firestore rejects in arrays
+  const sanitizeForFirestore = (data: any) => {
+    return JSON.parse(JSON.stringify(data));
+  };
+
   const handleSaveCareer = async (newCareer: Career | null) => {
     // Optimistic UI update
     setCareer(newCareer);
     if (user) {
       try {
-        await db.collection('users').doc(user.uid).set({ career: newCareer }, { merge: true });
+        const cleanCareer = sanitizeForFirestore(newCareer);
+        await db.collection('users').doc(user.uid).set({ career: cleanCareer }, { merge: true });
       } catch (err) {
         console.error("Failed to save career to cloud", err);
+        setError("Errore nel salvataggio. Riprova.");
       }
     }
   };
