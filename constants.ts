@@ -1,4 +1,5 @@
 
+
 import { Language, Translation, Team, Player } from './types';
 
 export const STARTING_SEASONS = [
@@ -164,6 +165,10 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     endSeasonConfirmMessage: "This will advance the season, increase players' age, and RESET financial history. Do you want to continue?",
     seasonAdvanced: "Season advanced!",
     managerActions: "Manager Actions",
+    confirmChangeTeam: "Confirm & Change Team",
+    newTeamName: "New Team Name",
+    changeTeamTitle: "Change Team",
+    enterNewTeamName: "Enter the name of your new team",
 
     // Squad & AI Import
     addPlayer: "Add Player",
@@ -332,6 +337,10 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     endSeasonConfirmMessage: "Passerai alla stagione successiva, l'età dei giocatori aumenterà e lo STORICO FINANZIARIO verrà resettato. Continuare?",
     seasonAdvanced: "Stagione avanzata!",
     managerActions: "Azioni Manager",
+    confirmChangeTeam: "Conferma e Cambia Squadra",
+    newTeamName: "Nome Nuova Squadra",
+    changeTeamTitle: "Cambio Squadra",
+    enterNewTeamName: "Inserisci il nome della nuova squadra",
 
     // Squad & AI Import
     addPlayer: "Aggiungi",

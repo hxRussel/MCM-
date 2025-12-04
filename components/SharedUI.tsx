@@ -127,16 +127,19 @@ export const ToggleButton = ({ active, onClick, children, title, className = '' 
   </button>
 );
 
-export const ConfirmationModal = ({ isOpen, title, message, onConfirm, onCancel, t }: any) => {
+export const ConfirmationModal = ({ isOpen, title, message, onConfirm, onCancel, extraButton, t }: any) => {
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
       <div className="bg-white dark:bg-obsidian border border-white/10 p-6 rounded-2xl shadow-2xl max-w-sm w-full animate-scale-in">
         <h3 className="text-xl font-bold mb-2">{title}</h3>
         <p className="opacity-70 mb-6 text-sm">{message}</p>
-        <div className="flex gap-3">
-          <Button variant="ghost" onClick={onCancel}>{t.cancel}</Button>
-          <Button variant="danger" onClick={onConfirm}>{t.confirm}</Button>
+        <div className="flex flex-col gap-3">
+           {extraButton}
+           <div className="flex gap-3">
+            <Button variant="ghost" onClick={onCancel}>{t.cancel}</Button>
+            <Button variant="danger" onClick={onConfirm}>{t.confirm}</Button>
+          </div>
         </div>
       </div>
     </div>
@@ -259,7 +262,7 @@ export const PlayerSelectionModal = ({ isOpen, onClose, title, players, onSelect
                   <button
                     key={player.id}
                     onClick={() => { onSelect(player); onClose(); }}
-                    className="p-3 rounded-xl flex items-center gap-3 hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-left group"
+                    className="p-3 rounded-xl flex items-center gap-3 hover:bg-black/5 dark:bg-white/5 transition-colors text-left group"
                   >
                     <div className={`font-black text-sm w-8 text-center ${ovrColor}`}>{player.overall}</div>
                     <div className="flex-1 min-w-0">

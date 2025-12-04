@@ -1,4 +1,5 @@
 
+
 import React, { useState, useRef } from 'react';
 import { 
   BriefcaseIcon, 
@@ -37,6 +38,12 @@ export const HomeView = ({ t, career, onSaveCareer, currency }: { t: any, career
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showEndSeasonConfirm, setShowEndSeasonConfirm] = useState(false);
   
+  // Change Team States
+  const [showChangeTeamInput, setShowChangeTeamInput] = useState(false);
+  const [newTeamName, setNewTeamName] = useState('');
+  const [newTeamLogo, setNewTeamLogo] = useState<string | null>(null);
+  const newTeamLogoRef = useRef<HTMLInputElement>(null);
+
   // New Modal States
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showTrendsModal, setShowTrendsModal] = useState(false);
@@ -48,12 +55,12 @@ export const HomeView = ({ t, career, onSaveCareer, currency }: { t: any, career
   const [wageInput, setWageInput] = useState('');
   const [isYearlyWage, setIsYearlyWage] = useState(false);
 
-  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>, setter: (s: string | null) => void) => {
     if (e.target.files && e.target.files[0]) {
       try {
         // Compress as PNG to preserve transparency for logos
         const compressed = await compressImage(e.target.files[0], 256, 256, 'png');
-        setTeamLogo(compressed);
+        setter(compressed);
       } catch (err) {
         console.error("Logo processing failed", err);
       }
@@ -104,29 +111,50 @@ export const HomeView = ({ t, career, onSaveCareer, currency }: { t: any, career
     setShowDeleteConfirm(false);
   };
 
-  const advanceSeason = () => {
+  const advanceSeason = (changeTeam: boolean = false) => {
     if (!career) return;
     
     // Parse current season "YYYY/YYYY"
     const [startYear, endYear] = career.season.split('/').map(y => parseInt(y));
     const nextSeason = `${startYear + 1}/${endYear + 1}`;
 
-    // Increment age for all players
-    const updatedPlayers = career.players.map(player => ({
-      ...player,
-      age: player.age + 1
-    }));
+    let updatedPlayers = career.players;
+    let updatedTeamName = career.teamName;
+    let updatedTeamLogo = career.teamLogo;
+
+    if (changeTeam) {
+        // Clear squad, update name/logo
+        updatedPlayers = [];
+        updatedTeamName = newTeamName || career.teamName;
+        updatedTeamLogo = newTeamLogo || undefined;
+    } else {
+        // Standard advance: Increment age
+        updatedPlayers = career.players.map(player => ({
+          ...player,
+          age: player.age + 1
+        }));
+    }
 
     // Update career state: Reset transactions and budget history for new season
     onSaveCareer({
       ...career,
       season: nextSeason,
+      teamName: updatedTeamName,
+      teamLogo: updatedTeamLogo,
       players: updatedPlayers,
       transactions: [], // Reset history
       budgetHistory: [{ date: new Date().toISOString(), transferBudget: career.transferBudget, wageBudget: career.wageBudget }] // Start new history point
     });
 
     setShowEndSeasonConfirm(false);
+    setShowChangeTeamInput(false);
+    setNewTeamName('');
+    setNewTeamLogo(null);
+  };
+
+  const handleStartChangeTeam = () => {
+    setShowEndSeasonConfirm(false);
+    setShowChangeTeamInput(true);
   };
 
   // Handlers for Budget Modals
@@ -275,7 +303,7 @@ export const HomeView = ({ t, career, onSaveCareer, currency }: { t: any, career
                   ref={logoInputRef} 
                   className="hidden" 
                   accept="image/png"
-                  onChange={handleLogoUpload} 
+                  onChange={(e) => handleLogoUpload(e, setTeamLogo)} 
                 />
               </div>
 
@@ -343,14 +371,75 @@ export const HomeView = ({ t, career, onSaveCareer, currency }: { t: any, career
         t={t}
       />
 
+      {/* End Season Confirmation with Change Team Option */}
       <ConfirmationModal 
         isOpen={showEndSeasonConfirm}
         title={t.endSeasonConfirmTitle}
         message={t.endSeasonConfirmMessage}
-        onConfirm={advanceSeason}
+        onConfirm={() => advanceSeason(false)}
         onCancel={() => setShowEndSeasonConfirm(false)}
+        extraButton={
+           <Button variant="primary" onClick={handleStartChangeTeam} className="bg-purple-500 text-white hover:bg-purple-600 shadow-purple-500/20">
+             {t.confirmChangeTeam}
+           </Button>
+        }
         t={t}
       />
+      
+      {/* Change Team Modal */}
+      {showChangeTeamInput && (
+        <div className="fixed inset-0 z-[85] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+           <GlassCard className="w-full max-w-sm p-6 space-y-6">
+              <div className="flex justify-between items-center border-b border-obsidian/5 dark:border-ghost/5 pb-4">
+                 <h3 className="text-xl font-bold">{t.changeTeamTitle}</h3>
+                 <button onClick={() => setShowChangeTeamInput(false)}><XMarkIcon className="w-6 h-6" /></button>
+              </div>
+              
+              <div className="space-y-4">
+                 <InputField 
+                    label={t.enterNewTeamName}
+                    type="text"
+                    value={newTeamName}
+                    onChange={(e) => setNewTeamName(e.target.value)}
+                    placeholder="New Team Name"
+                 />
+                 
+                 <div>
+                    <label className="block text-sm font-medium mb-2 opacity-80">{t.teamLogo} <span className="text-xs opacity-50 font-normal">(Optional)</span></label>
+                    <div 
+                      onClick={() => newTeamLogoRef.current?.click()}
+                      className="flex items-center gap-4 p-3 rounded-lg bg-white/5 border border-obsidian/10 dark:border-ghost/20 cursor-pointer hover:bg-white/10 transition-colors"
+                    >
+                      <div className="w-12 h-12 rounded-lg bg-black/5 dark:bg-white/5 flex items-center justify-center overflow-hidden">
+                        {newTeamLogo ? (
+                          <img src={newTeamLogo} alt="Logo Preview" className="w-full h-full object-contain" />
+                        ) : (
+                          <PhotoIcon className="w-6 h-6 opacity-30" />
+                        )}
+                      </div>
+                      <div className="flex-1">
+                         <p className="text-sm font-bold">{newTeamLogo ? "Logo Selected" : t.uploadLogo}</p>
+                      </div>
+                    </div>
+                    <input 
+                      type="file" 
+                      ref={newTeamLogoRef} 
+                      className="hidden" 
+                      accept="image/png"
+                      onChange={(e) => handleLogoUpload(e, setNewTeamLogo)} 
+                    />
+                 </div>
+
+                 <Button 
+                   onClick={() => advanceSeason(true)} 
+                   disabled={!newTeamName.trim()}
+                 >
+                   {t.confirm}
+                 </Button>
+              </div>
+           </GlassCard>
+        </div>
+      )}
 
       {/* History Modal */}
       {showHistoryModal && (
@@ -525,8 +614,8 @@ export const HomeView = ({ t, career, onSaveCareer, currency }: { t: any, career
         
         <p className="text-lg font-medium opacity-60 mb-6">{career.managerName}</p>
         <div className="flex justify-center gap-3">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-mint/10 text-mint-text text-xs font-bold uppercase tracking-wider">
-             <span className="w-2 h-2 rounded-full bg-mint animate-pulse"></span>
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-mint text-obsidian text-xs font-bold uppercase tracking-wider">
+             <span className="w-2 h-2 rounded-full bg-black animate-pulse"></span>
              {t.continueCareer}
           </div>
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 dark:bg-white/5 border border-white/20 text-xs font-bold uppercase tracking-wider">

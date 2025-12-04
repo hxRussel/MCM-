@@ -1,4 +1,5 @@
 
+
 export enum Language {
   EN = 'en',
   IT = 'it'
@@ -193,6 +194,10 @@ export interface Translation {
   endSeasonConfirmMessage: string;
   seasonAdvanced: string;
   managerActions: string;
+  confirmChangeTeam: string;
+  newTeamName: string;
+  changeTeamTitle: string;
+  enterNewTeamName: string;
 
   // Squad & AI Import
   addPlayer: string;
