@@ -132,7 +132,8 @@ export const MarketView = ({ t, career, onUpdateCareer, currency }: { t: any, ca
       playerName: newPlayerName,
       amount: fee,
       wage: wage,
-      date: new Date().toISOString()
+      date: new Date().toISOString(),
+      playerData: newPlayer // Save Snapshot
     };
 
     const updatedTransferBudget = career.transferBudget - fee;
@@ -187,7 +188,8 @@ export const MarketView = ({ t, career, onUpdateCareer, currency }: { t: any, ca
       playerName: selectedSellPlayer.name,
       amount: fee,
       wage: wage,
-      date: new Date().toISOString()
+      date: new Date().toISOString(),
+      playerData: selectedSellPlayer // Save Snapshot
     };
 
     const updatedCareer = {

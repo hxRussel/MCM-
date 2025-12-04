@@ -59,6 +59,7 @@ export interface Transaction {
   amount: number; // Transfer fee
   wage: number;   // Wage impact
   date: string;
+  playerData?: Player; // Snapshot of the player to restore squad on delete
 }
 
 export interface BudgetHistory {

@@ -185,16 +185,54 @@ export const HomeView = ({ t, career, onSaveCareer, currency }: { t: any, career
 
     let newTransferBudget = career.transferBudget;
     let newWageBudget = career.wageBudget;
+    let updatedPlayers = [...career.players];
 
     // REVERSE the impact of the deleted transaction
     if (deletingTx.type === 'buy') {
-      // Originally: Budget - Amount. Reversal: Budget + Amount.
+      // UNDO BUY:
+      // 1. Budget: Add money back (Reversal of "Budget - Amount") -> Budget + Amount
       newTransferBudget += deletingTx.amount;
       newWageBudget += deletingTx.wage;
+      
+      // 2. Squad: Remove player (We bought them, now we undo it)
+      // Try to match by ID from snapshot, or fallback to name
+      const targetId = deletingTx.playerData?.id;
+      if (targetId) {
+         updatedPlayers = updatedPlayers.filter(p => p.id !== targetId);
+      } else {
+         // Fallback by name for legacy transactions without snapshot
+         updatedPlayers = updatedPlayers.filter(p => p.name !== deletingTx.playerName);
+      }
+
     } else {
-      // Originally: Budget + Amount. Reversal: Budget - Amount.
+      // UNDO SELL:
+      // 1. Budget: Remove money (Reversal of "Budget + Amount") -> Budget - Amount
       newTransferBudget -= deletingTx.amount;
       newWageBudget -= deletingTx.wage;
+
+      // 2. Squad: Add player back (We sold them, now we undo it)
+      if (deletingTx.playerData) {
+         // Check if player already exists (avoid duplicates if user clicked multiple times)
+         const exists = updatedPlayers.find(p => p.id === deletingTx.playerData?.id);
+         if (!exists) {
+            updatedPlayers.push(deletingTx.playerData);
+         }
+      } else {
+         // Fallback: Create generic placeholder if legacy data missing
+         updatedPlayers.push({
+            id: 'restored-' + Date.now(),
+            name: deletingTx.playerName,
+            age: 25, 
+            overall: 75, 
+            position: 'MID', 
+            value: deletingTx.amount, 
+            wage: deletingTx.wage,
+            nationality: 'Unknown', 
+            isHomegrown: false, 
+            isNonEU: false, 
+            isOnLoan: false
+         });
+      }
     }
 
     const updatedTransactions = career.transactions.filter(t => t.id !== deletingTx.id);
@@ -203,6 +241,7 @@ export const HomeView = ({ t, career, onSaveCareer, currency }: { t: any, career
       ...career,
       transferBudget: newTransferBudget,
       wageBudget: newWageBudget,
+      players: updatedPlayers,
       transactions: updatedTransactions
     });
 
@@ -474,7 +513,7 @@ export const HomeView = ({ t, career, onSaveCareer, currency }: { t: any, career
       <ConfirmationModal 
         isOpen={!!deletingTx}
         title="Delete Transaction?"
-        message="This will reverse the financial impact on your budget. Are you sure?"
+        message="This will reverse the financial impact on your budget AND update your squad. Are you sure?"
         onConfirm={handleDeleteTransaction}
         onCancel={() => setDeletingTx(null)}
         t={t}
