@@ -86,6 +86,7 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     // Nav
     navHome: "Home",
     navSquad: "Squad",
+    navClub: "Club",
     navMarket: "Market",
     navSettings: "Settings",
 
@@ -198,7 +199,23 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     confirmSale: "Confirm Sale",
     fundsError: "Insufficient funds!",
     bought: "Bought",
-    sold: "Sold"
+    sold: "Sold",
+
+    // Club View
+    clubOverview: "Club Overview",
+    trophyCabinet: "Trophy Cabinet",
+    addTrophy: "Add Trophy",
+    addTrophyPlaceholder: "e.g. Champions League 2026",
+    seasonalEvents: "Seasonal Events",
+    preMatchEvents: "Pre-Match Events",
+    generateEvent: "Generate with AI",
+    activeEvents: "Active Events",
+    maxEventsReached: "Max Limit Reached",
+    aiEventGenerator: "AI Event Generator",
+    regenerate: "Regenerate",
+    saveEvent: "Save Event",
+    deleteEventConfirm: "Delete Event?",
+    deleteEventMessage: "Do you want to remove this active event?"
   },
   [Language.IT]: {
     welcome: "Benvenuto su MCM+",
@@ -229,6 +246,7 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     // Nav
     navHome: "Home",
     navSquad: "Rosa",
+    navClub: "Club",
     navMarket: "Mercato",
     navSettings: "Impostazioni",
 
@@ -341,6 +359,22 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     confirmSale: "Conferma Cessione",
     fundsError: "Fondi insufficienti!",
     bought: "Acquisto",
-    sold: "Cessione"
+    sold: "Cessione",
+
+    // Club View
+    clubOverview: "Panoramica Club",
+    trophyCabinet: "Palmares",
+    addTrophy: "Aggiungi Trofeo",
+    addTrophyPlaceholder: "es. Champions League 2026",
+    seasonalEvents: "Imprevisti Stagionali",
+    preMatchEvents: "Imprevisti Pre-Partita",
+    generateEvent: "Genera con AI",
+    activeEvents: "Eventi Attivi",
+    maxEventsReached: "Limite Raggiunto",
+    aiEventGenerator: "Generatore AI",
+    regenerate: "Rigenera",
+    saveEvent: "Salva Evento",
+    deleteEventConfirm: "Eliminare Evento?",
+    deleteEventMessage: "Vuoi rimuovere questo evento attivo?"
   }
 };

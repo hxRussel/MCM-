@@ -13,12 +13,14 @@ import {
   UserGroupIcon,
   CurrencyDollarIcon,
   Cog6ToothIcon,
+  TrophyIcon
 } from '@heroicons/react/24/outline';
 import { 
   HomeIcon as HomeSolid,
   UserGroupIcon as UserGroupSolid, 
   CurrencyDollarIcon as CurrencyDollarSolid, 
-  Cog6ToothIcon as CogSolid
+  Cog6ToothIcon as CogSolid,
+  TrophyIcon as TrophySolid
 } from '@heroicons/react/24/solid';
 
 // Components & Views
@@ -28,6 +30,7 @@ import { SquadView } from './views/SquadView';
 import { ProfileView } from './views/ProfileView';
 import { MarketView } from './views/MarketView';
 import { SettingsView } from './views/SettingsView';
+import { ClubView } from './views/ClubView';
 
 export default function App() {
   const [user, setUser] = useState<firebase.User | null>(null);
@@ -266,6 +269,7 @@ export default function App() {
         <main className="pt-24 pb-32 px-6 min-h-screen">
           {currentView === View.HOME && <HomeView t={t} career={career} onSaveCareer={handleSaveCareer} currency={currency} />}
           {currentView === View.SQUAD && career && <SquadView t={t} career={career} onUpdateCareer={handleSaveCareer} />}
+          {currentView === View.CLUB && career && <ClubView t={t} career={career} onUpdateCareer={handleSaveCareer} language={language} currency={currency} />}
           {currentView === View.MARKET && career && <MarketView t={t} career={career} onUpdateCareer={handleSaveCareer} currency={currency} />}
           {currentView === View.SETTINGS && 
              <SettingsView 
@@ -292,7 +296,7 @@ export default function App() {
 
         {/* Bottom Navigation Pill */}
         <div className="fixed bottom-8 left-0 w-full flex justify-center z-50 px-4">
-           <div className="bg-white/80 dark:bg-black/80 backdrop-blur-2xl border border-white/20 dark:border-white/10 rounded-full px-2 py-2 shadow-2xl shadow-black/10 dark:shadow-black/40 flex gap-2">
+           <div className="bg-white/80 dark:bg-black/80 backdrop-blur-2xl border border-white/20 dark:border-white/10 rounded-full px-2 py-2 shadow-2xl shadow-black/10 dark:shadow-black/40 flex gap-1 sm:gap-2">
               <NavItem 
                 icon={HomeIcon} 
                 solidIcon={HomeSolid} 
@@ -304,6 +308,13 @@ export default function App() {
                 solidIcon={UserGroupSolid} 
                 active={currentView === View.SQUAD} 
                 onClick={() => setCurrentView(View.SQUAD)} 
+              />
+              {/* New Club Tab */}
+              <NavItem 
+                icon={TrophyIcon} 
+                solidIcon={TrophySolid} 
+                active={currentView === View.CLUB} 
+                onClick={() => setCurrentView(View.CLUB)} 
               />
               <NavItem 
                 icon={CurrencyDollarIcon} 

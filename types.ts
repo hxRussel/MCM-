@@ -15,6 +15,7 @@ export type Currency = '€' | '$' | '£';
 export enum View {
   HOME = 'home',
   SQUAD = 'squad',
+  CLUB = 'club',
   MARKET = 'market',
   SETTINGS = 'settings',
   PROFILE = 'profile'
@@ -75,6 +76,11 @@ export interface Career {
   wageDisplayMode?: 'weekly' | 'yearly';
   transactions: Transaction[];
   budgetHistory: BudgetHistory[];
+  
+  // New Club Fields
+  trophies: string[];
+  seasonalEvents: string[];
+  preMatchEvents: string[];
 }
 
 export interface Translation {
@@ -107,6 +113,7 @@ export interface Translation {
   // Nav
   navHome: string;
   navSquad: string;
+  navClub: string;
   navMarket: string;
   navSettings: string;
 
@@ -213,11 +220,27 @@ export interface Translation {
   playerName: string;
   transferFee: string;
   wage: string;
-  releasedWage: string;
   saleFee: string;
+  releasedWage: string;
   confirmSigning: string;
   confirmSale: string;
   fundsError: string;
   bought: string;
   sold: string;
+
+  // Club View
+  clubOverview: string;
+  trophyCabinet: string;
+  addTrophy: string;
+  addTrophyPlaceholder: string;
+  seasonalEvents: string;
+  preMatchEvents: string;
+  generateEvent: string;
+  activeEvents: string;
+  maxEventsReached: string;
+  aiEventGenerator: string;
+  regenerate: string;
+  saveEvent: string;
+  deleteEventConfirm: string;
+  deleteEventMessage: string;
 }

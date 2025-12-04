@@ -73,7 +73,10 @@ export const HomeView = ({ t, career, onSaveCareer, currency }: { t: any, career
       season: startingSeason,
       wageDisplayMode: 'weekly',
       transactions: [],
-      budgetHistory: [{ date: new Date().toISOString(), transferBudget: teamData.transferBudget, wageBudget: teamData.wageBudget }]
+      budgetHistory: [{ date: new Date().toISOString(), transferBudget: teamData.transferBudget, wageBudget: teamData.wageBudget }],
+      trophies: [],
+      seasonalEvents: [],
+      preMatchEvents: []
     };
     
     onSaveCareer(newCareer);
