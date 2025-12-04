@@ -1,5 +1,4 @@
 
-
 import React, { useState } from 'react';
 import { 
   TrophyIcon, 
@@ -60,24 +59,44 @@ export const ClubView = ({ t, career, onUpdateCareer, language, currency }: { t:
       let systemPrompt = "";
       
       if (type === 'seasonal') {
+         // Calculate Context Stats
+         const playerCount = career.players.length;
+         const avgAge = playerCount > 0 
+            ? (career.players.reduce((sum, p) => sum + p.age, 0) / playerCount).toFixed(1) 
+            : "0";
+         const over22 = career.players.filter(p => p.age > 22).length;
+         const under22 = playerCount - over22;
+
          systemPrompt = `
-           ROLE: You are a strict Football Director in a realistic career mode.
-           TASK: Generate ONE random seasonal obstacle or objective for the team "${career.teamName}".
-           CONTEXT:
+           ROLE: You are the Club Board of Directors / Football Director.
+           TASK: Generate ONE realistic seasonal objective or obstacle for the manager of "${career.teamName}".
+           
+           DETAILED CONTEXT:
            - Transfer Budget: ${formatMoney(career.transferBudget, currency)}
            - Wage Budget: ${formatMoney(career.wageBudget, currency)}/wk
-           - Squad Size: ${career.players.length} players
+           - Squad Size: ${playerCount} players (Standard is ~25-28)
+           - Average Age: ${avgAge} years
+           - Experienced Players (>22): ${over22}
+           - Young Players (<=22): ${under22}
            
-           TYPES OF EVENTS (Pick one randomly):
-           - Financial Fair Play restrictions (e.g. reduce wage bill by 10%).
-           - Board cuts budget for stadium renovation.
-           - Mandatory signing from a specific nation.
-           - Forced sale of a star player due to unhappiness.
-           - Injury crisis simulation (budget needed for medical staff).
+           LOGIC FOR GENERATION (Analyze the context):
+           1. **SQUAD SIZE**: 
+              - If > 30 players: Demand to sell at least 3 players to reduce bloat.
+              - If < 20 players: Demand to sign at least 3 players for depth.
+           2. **AGE PROFILE**:
+              - If Avg Age > 28: Demand to lower average age (Sign U21 players).
+              - If Avg Age < 23: Demand to add experience (Sign players > 30yo).
+           3. **FINANCIAL**:
+              - If Budget is High (>100M): Demand a "Marquee Signing" (Star player).
+              - If Budget is Low (<5M): Demand strict austerity or selling a key player to raise funds.
+              - If Wage Bill is high: Demand to reduce total wage bill by 10%.
+           4. **IDENTITY**:
+              - Demand to sign players from a specific nation (e.g., local talent).
+              - Demand to play/promote academy graduates.
            
            OUTPUT RULES:
-           - Be creative but realistic.
-           - Be specific (mention amounts or specific regions).
+           - Pick ONE scenario based on the logic above.
+           - Be creative and realistic for a football simulation.
            - Max 2 sentences.
            - Language: ${langName}.
          `;
