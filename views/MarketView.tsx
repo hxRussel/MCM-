@@ -1,5 +1,3 @@
-
-
 import React, { useState } from 'react';
 import { 
   CurrencyDollarIcon, 
@@ -427,11 +425,13 @@ export const MarketView = ({ t, career, onUpdateCareer, currency }: { t: any, ca
         <div className="grid grid-cols-2 gap-4">
           <GlassCard onClick={openTransferModal} className="p-5 cursor-pointer hover:scale-[1.02] transition-transform">
              <span className="text-xs font-bold opacity-50 uppercase tracking-wider block mb-1">{t.transferBudget}</span>
-             <div className="text-2xl font-black text-green-500">{formatMoney(career.transferBudget, currency)}</div>
+             <div className="flex items-baseline text-green-500">
+                <span className="text-2xl font-black">{formatMoney(career.transferBudget, currency)}</span>
+             </div>
           </GlassCard>
           <GlassCard onClick={openWageModal} className="p-5 cursor-pointer hover:scale-[1.02] transition-transform">
              <span className="text-xs font-bold opacity-50 uppercase tracking-wider block mb-1">{t.wageBudget}</span>
-             <div className="flex items-baseline gap-0.5 text-blue-500">
+             <div className="flex items-baseline gap-1 text-blue-500">
                <span className="text-2xl font-black">{formatMoney(displayWageData.value, currency)}</span>
                <span className="text-xs font-normal opacity-60">{displayWageData.suffix}</span>
              </div>
