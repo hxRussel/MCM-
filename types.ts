@@ -69,6 +69,7 @@ export interface BudgetHistory {
 export interface Career {
   managerName: string;
   teamName: string;
+  teamLogo?: string; // New field for Base64 PNG logo
   transferBudget: number;
   wageBudget: number;
   players: Player[];
@@ -141,6 +142,12 @@ export interface Translation {
   themeLight: string;
   themeDark: string;
   themeAuto: string;
+  clubCustomization: string;
+  teamLogo: string;
+  uploadLogo: string;
+  uploadLogoDesc: string;
+  deleteLogoConfirm: string;
+  deleteLogoMessage: string;
 
   // Career Creation & Stats
   startCareer: string;

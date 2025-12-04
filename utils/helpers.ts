@@ -1,6 +1,6 @@
 
-// Updated to allow higher resolution for OCR
-export const compressImage = (file: File, maxWidth = 300, maxHeight = 300): Promise<string> => {
+// Updated to allow higher resolution for OCR and PNG support
+export const compressImage = (file: File, maxWidth = 300, maxHeight = 300, format: 'jpeg' | 'png' = 'jpeg'): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
@@ -27,8 +27,10 @@ export const compressImage = (file: File, maxWidth = 300, maxHeight = 300): Prom
         canvas.height = height;
         const ctx = canvas.getContext('2d');
         ctx?.drawImage(img, 0, 0, width, height);
-        // Use higher quality for OCR
-        resolve(canvas.toDataURL('image/jpeg', 0.9));
+        
+        // Use higher quality (0.9) and specified format
+        // PNG preserves transparency, JPEG does not.
+        resolve(canvas.toDataURL(`image/${format}`, 0.9));
       };
       img.onerror = (err) => reject(err);
     };

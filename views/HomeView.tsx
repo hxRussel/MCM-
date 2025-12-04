@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   BriefcaseIcon, 
   CalendarDaysIcon, 
@@ -18,11 +18,12 @@ import {
   ArrowUpRightIcon,
   TrophyIcon,
   ClockIcon,
-  PresentationChartLineIcon
+  PresentationChartLineIcon,
+  PhotoIcon
 } from '@heroicons/react/24/outline';
 import { Career, Team, Transaction, Currency } from '../types';
 import { MOCK_TEAMS, STARTING_SEASONS } from '../constants';
-import { formatMoney, formatNumberInput, cleanNumberInput } from '../utils/helpers';
+import { formatMoney, formatNumberInput, cleanNumberInput, compressImage } from '../utils/helpers';
 import { GlassCard, Button, InputField, SelectField, ConfirmationModal, StatCard } from '../components/SharedUI';
 
 export const HomeView = ({ t, career, onSaveCareer, currency }: { t: any, career: Career | null, onSaveCareer: (c: Career | null) => void, currency: Currency }) => {
@@ -30,6 +31,9 @@ export const HomeView = ({ t, career, onSaveCareer, currency }: { t: any, career
   const [selectedTeamId, setSelectedTeamId] = useState('');
   const [customTeamName, setCustomTeamName] = useState('');
   const [startingSeason, setStartingSeason] = useState(STARTING_SEASONS[1]); // Default 2025/2026
+  const [teamLogo, setTeamLogo] = useState<string | null>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showEndSeasonConfirm, setShowEndSeasonConfirm] = useState(false);
   
@@ -43,6 +47,18 @@ export const HomeView = ({ t, career, onSaveCareer, currency }: { t: any, career
   const [transferInput, setTransferInput] = useState('');
   const [wageInput, setWageInput] = useState('');
   const [isYearlyWage, setIsYearlyWage] = useState(false);
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      try {
+        // Compress as PNG to preserve transparency for logos
+        const compressed = await compressImage(e.target.files[0], 256, 256, 'png');
+        setTeamLogo(compressed);
+      } catch (err) {
+        console.error("Logo processing failed", err);
+      }
+    }
+  };
 
   const createCareer = () => {
     let teamData: Team;
@@ -66,6 +82,7 @@ export const HomeView = ({ t, career, onSaveCareer, currency }: { t: any, career
     const newCareer: Career = {
       managerName: managerName || 'Manager',
       teamName: teamData.name,
+      teamLogo: teamLogo || undefined,
       transferBudget: teamData.transferBudget,
       wageBudget: teamData.wageBudget,
       players: teamData.players,
@@ -233,6 +250,34 @@ export const HomeView = ({ t, career, onSaveCareer, currency }: { t: any, career
                   placeholder="My Dream FC"
                 />
               )}
+
+              {/* Logo Upload */}
+              <div>
+                <label className="block text-sm font-medium mb-2 opacity-80">{t.teamLogo} <span className="text-xs opacity-50 font-normal">(PNG)</span></label>
+                <div 
+                  onClick={() => logoInputRef.current?.click()}
+                  className="flex items-center gap-4 p-3 rounded-lg bg-white/5 border border-obsidian/10 dark:border-ghost/20 cursor-pointer hover:bg-white/10 transition-colors"
+                >
+                  <div className="w-12 h-12 rounded-lg bg-black/5 dark:bg-white/5 flex items-center justify-center overflow-hidden">
+                    {teamLogo ? (
+                      <img src={teamLogo} alt="Logo Preview" className="w-full h-full object-contain" />
+                    ) : (
+                      <PhotoIcon className="w-6 h-6 opacity-30" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                     <p className="text-sm font-bold">{teamLogo ? "Logo Selected" : t.uploadLogo}</p>
+                     <p className="text-xs opacity-50">{t.uploadLogoDesc}</p>
+                  </div>
+                </div>
+                <input 
+                  type="file" 
+                  ref={logoInputRef} 
+                  className="hidden" 
+                  accept="image/png"
+                  onChange={handleLogoUpload} 
+                />
+              </div>
 
               <Button 
                 onClick={createCareer} 
@@ -468,9 +513,16 @@ export const HomeView = ({ t, career, onSaveCareer, currency }: { t: any, career
       )}
       
       {/* Header Card */}
-      <GlassCard className="relative overflow-hidden p-6 text-center border-t-4 border-t-mint">
+      <GlassCard className="relative overflow-hidden p-6 text-center border-t-4 border-t-mint flex flex-col items-center justify-center">
         <div className="absolute top-0 right-0 w-32 h-32 bg-mint/10 rounded-full blur-3xl pointer-events-none"></div>
-        <h2 className="text-4xl font-black mb-1">{career.teamName}</h2>
+        
+        <div className="flex items-center gap-4 mb-2">
+           {career.teamLogo && (
+             <img src={career.teamLogo} alt="Team Logo" className="w-16 h-16 object-contain drop-shadow-lg" />
+           )}
+           <h2 className="text-4xl font-black">{career.teamName}</h2>
+        </div>
+        
         <p className="text-lg font-medium opacity-60 mb-6">{career.managerName}</p>
         <div className="flex justify-center gap-3">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-mint/10 text-mint-text text-xs font-bold uppercase tracking-wider">

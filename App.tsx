@@ -280,6 +280,8 @@ export default function App() {
                setTheme={(th) => saveSettings(undefined, th, undefined)}
                currency={currency}
                setCurrency={(c) => saveSettings(undefined, undefined, c)}
+               career={career}
+               onUpdateCareer={handleSaveCareer}
              />
           }
           {currentView === View.PROFILE && 

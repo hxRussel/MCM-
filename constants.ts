@@ -113,6 +113,12 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     themeLight: "Light",
     themeDark: "Dark",
     themeAuto: "System",
+    clubCustomization: "Club Customization",
+    teamLogo: "Team Crest",
+    uploadLogo: "Upload Crest",
+    uploadLogoDesc: "Upload a transparent PNG (max 1MB).",
+    deleteLogoConfirm: "Remove Crest?",
+    deleteLogoMessage: "Are you sure you want to remove the team crest?",
 
     // Career Creation & Stats
     startCareer: "Start New Career",
@@ -275,6 +281,12 @@ export const TRANSLATIONS: Record<Language, Translation> = {
     themeLight: "Chiaro",
     themeDark: "Scuro",
     themeAuto: "Sistema",
+    clubCustomization: "Personalizzazione Club",
+    teamLogo: "Stemma Club",
+    uploadLogo: "Carica Stemma",
+    uploadLogoDesc: "Carica un PNG trasparente (max 1MB).",
+    deleteLogoConfirm: "Rimuovere Stemma?",
+    deleteLogoMessage: "Sei sicuro di voler rimuovere lo stemma della squadra?",
 
     // Career Creation & Stats
     startCareer: "Inizia Nuova Carriera",
