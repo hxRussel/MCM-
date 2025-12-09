@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { 
   TrophyIcon, 
@@ -59,74 +58,85 @@ export const ClubView = ({ t, career, onUpdateCareer, language, currency }: { t:
       let systemPrompt = "";
       
       if (type === 'seasonal') {
-         // Calculate Context Stats
-         const playerCount = career.players.length;
-         const avgAge = playerCount > 0 
-            ? (career.players.reduce((sum, p) => sum + p.age, 0) / playerCount).toFixed(1) 
-            : "0";
-         const over22 = career.players.filter(p => p.age > 22).length;
-         const under22 = playerCount - over22;
+         // Calculate Stats properly to give context
+         const totalPlayers = career.players.length;
+         const loanedPlayersCount = career.players.filter(p => p.isOnLoan).length;
+         const activeSquadSize = totalPlayers - loanedPlayersCount;
 
-         // Get Key Players for Contract Context (Top 8 by Overall)
-         const sortedPlayers = [...career.players].sort((a, b) => b.overall - a.overall);
-         const keyPlayers = sortedPlayers.slice(0, 8).map(p => p.name).join(", ");
+         const activePlayers = career.players.filter(p => !p.isOnLoan);
+         
+         const avgAge = activePlayers.length > 0 
+            ? (activePlayers.reduce((sum, p) => sum + p.age, 0) / activePlayers.length).toFixed(1) 
+            : "0";
+         
+         // Get a mix of players for context, not just top ones
+         const sortedPlayers = [...activePlayers].sort((a, b) => b.overall - a.overall);
+         const keyPlayers = sortedPlayers.slice(0, 5).map(p => p.name).join(", ");
+         const youngTalents = activePlayers.filter(p => p.age <= 21 && p.overall > 65).slice(0, 3).map(p => p.name).join(", ");
 
          systemPrompt = `
-           ROLE: You are the Club Board of Directors / Football Director.
-           TASK: Generate ONE realistic seasonal objective or obstacle for the manager of "${career.teamName}".
+           ROLE: You are an unpredictable and creative Football Director / Board Member for "${career.teamName}".
+           TASK: Generate ONE realistic, challenging, and fun seasonal objective or scenario.
            
-           DETAILED CONTEXT:
+           REAL TEAM CONTEXT:
            - Transfer Budget: ${formatMoney(career.transferBudget, currency)}
            - Wage Budget: ${formatMoney(career.wageBudget, currency)}/wk
-           - Squad Size: ${playerCount} players (Standard is ~25-28)
-           - Average Age: ${avgAge} years
-           - Experienced Players (>22): ${over22}
-           - Young Players (<=22): ${under22}
-           - Key Players: ${keyPlayers}
+           - Active Squad Size: ${activeSquadSize} players (Standard for this level is ~28-32. Do NOT consider this bloated unless > 35).
+           - Players out on Loan: ${loanedPlayersCount} (Ignore these for squad size complaints).
+           - Average Age: ${avgAge} years.
+           - Key Stars: ${keyPlayers}
+           - Young Prospects: ${youngTalents}
            
-           LOGIC FOR GENERATION (Analyze the context):
-           1. **SQUAD SIZE**: 
-              - If > 30 players: Demand to sell at least 3 players to reduce bloat.
-              - If < 20 players: Demand to sign at least 3 players for depth.
-           2. **AGE PROFILE**:
-              - If Avg Age > 28: Demand to lower average age (Sign U21 players).
-              - If Avg Age < 23: Demand to add experience (Sign players > 30yo).
-           3. **FINANCIAL**:
-              - If Budget is High (>100M): Demand a "Marquee Signing" (Star player).
-              - If Budget is Low (<5M): Demand strict austerity or selling a key player to raise funds.
-              - If Wage Bill is high: Demand to reduce total wage bill by 10%.
-           4. **CONTRACTS & MAN MANAGEMENT** (PRIORITY):
-              - Choose a specific player from "Key Players" who demands a wage increase or he will leave.
-              - Choose a player who refuses to renew their contract (risk of leaving on free transfer).
-              - A key player is unhappy and demands to be sold to a bigger club.
-           5. **IDENTITY**:
-              - Demand to sign players from a specific nation (e.g., local talent).
-              - Demand to play/promote academy graduates.
+           INSTRUCTIONS FOR VARIETY (Crucial):
+           Do NOT always focus on selling players. Do NOT always target the best player.
+           Randomly select ONE of the following categories for the event:
            
+           1. **YOUTH DEVELOPMENT**: e.g., "Give 5 starts to a player under 21", "Promote a youth player", "Make [Young Prospect Name] a starter".
+           2. **TACTICAL / PERFORMANCE**: e.g., "Keep 3 clean sheets in a row", "Win a match using a specific formation", "Have a substitute score 5 goals this season".
+           3. **LOCKER ROOM / CONTRACTS**: e.g., "Renew the contract of a veteran", "A rotation player complains about game time", "Resolve a dispute between two players".
+           4. **FINANCIAL / MARKET**: e.g., "Reduce wage bill by 10% without selling starters", "Sign a player from [Specific Nation] for marketing", "Sell a fringe player for profit".
+           5. **MEDIA / BOARD**: e.g., "The Board demands attacking football (Score 2+ goals in next 3 games)", "Avoid bad press by not criticizing refs".
+
            OUTPUT RULES:
-           - Pick ONE scenario based on the logic above.
-           - Be creative, realistic, and specific (use player names if applicable).
+           - Be specific and creative. 
+           - If referencing a player, you can pick a star OR a random squad player.
+           - Ensure the objective is achievable but challenging.
            - Max 2 sentences.
            - Language: ${langName}.
          `;
       } else {
-         const playerList = career.players.map(p => p.name).slice(0, 15).join(", ");
+         const activePlayers = career.players.filter(p => !p.isOnLoan);
+         
+         if (activePlayers.length === 0) {
+            setGeneratedEvent("No active players available to generate an event.");
+            setIsGenerating(false);
+            return;
+         }
+
+         // Get a random selection of players so we don't always talk about the best ones
+         // Increased sample size to allow for groups
+         const shuffled = [...activePlayers].sort(() => 0.5 - Math.random());
+         const playerList = shuffled.slice(0, 12).map(p => p.name).join(", ");
+
          systemPrompt = `
-           ROLE: You are a Football Assistant Coach.
-           TASK: Generate ONE random pre-match scenario regarding player availability or selection.
-           CONTEXT:
-           - Key Players: ${playerList}
+           ROLE: You are a Football Assistant Coach preparing for the next match.
+           TASK: Generate ONE realistic, varied, and challenging pre-match incident or scenario.
            
-           TYPES OF EVENTS (Pick one randomly):
-           - A player has the flu/virus and cannot play.
-           - Training ground bust-up: Player X cannot start.
-           - Board pressure: You MUST start Player Y this match.
-           - Late fitness test failed for a defender.
-           - Personal issue: Player Z needs a rest.
+           CONTEXT:
+           - Active Squad (Selection): ${playerList}
+           
+           INSTRUCTIONS:
+           1. **TARGET**: Can affect 1 player, 2 players (conflict/chemistry), or a small group (3 players, e.g., flu). ONLY use players from the list provided.
+           2. **VARIETY**: Randomly select one of these categories:
+              - **MEDICAL**: Flu outbreak (multiple players), food poisoning, late fitness test failure, fatigue, minor knock.
+              - **DISCIPLINE**: Late for team meeting, training ground bust-up (2 players), leaking tactics, unprofessional behavior.
+              - **PSYCHOLOGY**: Nervousness before big game, distracted by transfer rumors, personal family issue affecting focus, overconfidence.
+              - **TACTICAL**: Two players showing great chemistry in training, a player struggling to adapt to tactics, weather conditions favoring a specific player's style.
+              - **EXTERNAL**: Stuck in traffic, kit man forgot boots, bad pitch conditions affecting technical players, fan pressure on a local player.
            
            OUTPUT RULES:
-           - Pick a specific name from the list provided if possible.
-           - Max 2 sentences.
+           - Be concise (max 2 sentences).
+           - Do not always default to "Player X is injured". Be creative.
            - Language: ${langName}.
          `;
       }
